@@ -2,6 +2,30 @@
 
 import { ReportNode, DocumentNode } from "./types"
 
+// --- 新增一个辅助函数 ---
+// 功能：使用 FileReader 异步读取文件内容
+export const readFileContent = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    // 仅处理文本类文件
+    if (file.type.startsWith("text/") || file.type.includes("markdown")) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        resolve(e.target?.result as string)
+      }
+      reader.onerror = (e) => {
+        console.error("文件读取失败", e)
+        reject(new Error("文件读取失败"))
+      }
+      reader.readAsText(file) // 将文件读为文本
+    } else {
+      // 对于非文本文件（如 PDF, DOCX），暂时返回提示信息
+      // 后面会讲如何处理它们
+      console.warn(`跳过非文本文件: ${file.name} (${file.type})`)
+      resolve(`[${file.name} - 暂不支持预览此文件类型]`)
+    }
+  })
+}
+
 export const getNode = (treeNodes: DocumentNode[], id: string): DocumentNode | undefined => {
   return treeNodes.find((n) => n.id === id)
 }
@@ -327,4 +351,28 @@ setDraggedNode: (node: ReportNode | null) => void // <-- 增加这个参数
 
   setExpandedReportNodes(new Set([...expandedReportNodes, targetNode.id]))
 setDraggedNode(null) 
+}
+
+export const addDocumentNodeToTree = (
+  nodes: DocumentNode[],
+  newNode: DocumentNode,
+  parentId: string | null
+): DocumentNode[] => {
+  const newNodes = [...nodes]
+  
+  // 1. 设置新节点的 parentId
+  newNode.parentId = parentId
+
+  // 2. 将新节点添加到数组
+  newNodes.push(newNode)
+
+  // 3. 如果有父节点，将此文件ID添加到父节点的 children 数组
+  if (parentId) {
+    const parentNode = newNodes.find((n) => n.id === parentId)
+    if (parentNode && parentNode.type === "folder") {
+      parentNode.children = parentNode.children ? [...parentNode.children, newNode.id] : [newNode.id]
+    }
+  }
+
+  return newNodes
 }

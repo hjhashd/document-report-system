@@ -13,7 +13,7 @@ export function TipsModal({ isOpen, onClose }: TipsModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-25">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25">
       <div className="bg-white p-8 rounded-lg shadow-lg w-96 max-w-xl">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold flex items-center gap-2">

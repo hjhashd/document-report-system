@@ -12,7 +12,7 @@ import { DocumentTree } from "@/components/document-report/document-tree"
 import { FlowchartLink } from "@/components/flowchart-link"
 
 // 导入你的操作函数（资料库视图需要）
-import { getNode, getNodePath } from "@/components/document-report/tree-operations"
+import { getNode, getNodePath, readFileContent, getReportNode } from "@/components/document-report/tree-operations"
 import { formatFileSize } from "@/components/document-report/report-operations"
 
 // -----------------------------------------------------------------
@@ -181,6 +181,197 @@ export default function DocumentReportSystem() {
     )
   }
 
+  // --- 新增资料库文件上传函数 ---
+  const handleLibraryFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    parentId: string | null = null
+  ) => {
+    const files = Array.from(e.target.files || [])
+    
+    // 异步处理所有文件
+    const fileDataPromises = files.map(async (file) => {
+      const content = await readFileContent(file) // 等待文件内容被读取
+      return {
+        id: "doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        type: "file" as const,
+        parentId: parentId || selectedNode, // 如果没有指定parentId，则使用当前选中的节点
+        uploadDate: new Date().toISOString(),
+        content: content, // 将读取到的内容存入对象
+        fileSize: file.size,
+      }
+    })
+
+    // 等待所有文件都处理完毕
+    const fileData = await Promise.all(fileDataPromises)
+    
+    // 将新文件添加到资料库
+    setTreeNodes([...treeNodes, ...fileData])
+  }
+
+  // --- 新增附件上传函数（一处上传，多处复用）---
+  const handleAttachmentFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    fileType: "style" | "bidding"
+  ) => {
+    const files = Array.from(e.target.files || [])
+    
+    // 异步处理所有文件
+    const fileDataPromises = files.map(async (file) => {
+      const content = await readFileContent(file) // 等待文件内容被读取
+      
+      // 1. 创建附件对象（用于右侧报告信息面板）
+      const attachment = {
+        id: "file-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadDate: new Date().toISOString(),
+        content: content,
+      }
+      
+      // 2. 创建资料库文档对象（用于中间资料库面板）
+      const document = {
+        id: "doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        type: "file" as const,
+        parentId: selectedNode, // 添加到当前选中的资料库目录下
+        uploadDate: new Date().toISOString(),
+        content: content,
+        fileSize: file.size,
+      }
+      
+      return { attachment, document }
+    })
+
+    // 等待所有文件都处理完毕
+    const fileData = await Promise.all(fileDataPromises)
+    
+    // 1. 将文件添加到附件列表
+    const attachments = fileData.map(item => item.attachment)
+    if (fileType === "style") {
+      setStyleDocFiles([...styleDocFiles, ...attachments])
+    } else if (fileType === "bidding") {
+      setBiddingFiles([...biddingFiles, ...attachments])
+    }
+    
+    // 2. 将文件添加到资料库
+    const documents = fileData.map(item => item.document)
+    setTreeNodes([...treeNodes, ...documents])
+    
+    // 3. 如果有选中的报告目录，也添加到报告目录中
+    if (selectedReportNode) {
+      const reportNode = getReportNode(reportStructure, selectedReportNode)
+      if (reportNode && reportNode.type === "folder") {
+        const newDocRefs = documents.map(doc => ({
+          id: "report-doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
+          name: doc.name,
+          type: "file" as const,
+          sourceId: doc.id,
+          description: doc.description,
+          content: doc.content,
+        }))
+        
+        const addToNode = (nodes: ReportNode[]): boolean => {
+          for (const node of nodes) {
+            if (node.id === selectedReportNode) {
+              node.children = node.children || []
+              node.children.push(...newDocRefs)
+              return true
+            }
+            if (node.children && addToNode(node.children)) {
+              return true
+            }
+          }
+          return false
+        }
+        
+        const newStructure = [...reportStructure]
+        if (addToNode(newStructure)) {
+          setReportStructure(newStructure)
+        }
+      }
+    }
+  }
+
+  // --- 处理文档选择上传（中间面板的上传按钮，专门用于报告目录）---
+  const handleDocumentSelectionUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return
+    
+    const files = Array.from(e.target.files || [])
+    
+    if (!selectedReportNode) {
+      alert("请先在报告结构中选择一个节点")
+      return
+    }
+    
+    const reportNode = getReportNode(reportStructure, selectedReportNode)
+    if (!reportNode || reportNode.type !== "folder") {
+      alert("请选择一个文件夹节点")
+      return
+    }
+    
+    // 异步处理所有文件
+    const fileDataPromises = files.map(async (file) => {
+      const content = await readFileContent(file)
+      
+      // 1. 创建资料库文档对象
+      const document = {
+        id: "doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        type: "file" as const,
+        parentId: selectedNode, // 添加到当前选中的资料库目录下
+        uploadDate: new Date().toISOString(),
+        content: content,
+        fileSize: file.size,
+      }
+      
+      // 2. 创建报告文档引用对象
+      const reportDocRef = {
+        id: "report-doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        type: "file" as const,
+        sourceId: document.id,
+        description: "",
+        content: content,
+      }
+      
+      return { document, reportDocRef }
+    })
+    
+    // 等待所有文件都处理完毕
+    const fileData = await Promise.all(fileDataPromises)
+    
+    // 1. 将文件添加到资料库
+    const documents = fileData.map(item => item.document)
+    setTreeNodes([...treeNodes, ...documents])
+    
+    // 2. 将文档引用添加到选中的报告节点
+    const reportDocRefs = fileData.map(item => item.reportDocRef)
+    
+    const addToNode = (nodes: ReportNode[]): boolean => {
+      for (const node of nodes) {
+        if (node.id === selectedReportNode) {
+          node.children = node.children || []
+          node.children.push(...reportDocRefs)
+          return true
+        }
+        if (node.children && addToNode(node.children)) {
+          return true
+        }
+      }
+      return false
+    }
+    
+    const newStructure = [...reportStructure]
+    if (addToNode(newStructure)) {
+      setReportStructure(newStructure)
+    }
+    
+    // 清空文件输入
+    e.target.value = ""
+  }
+
   // -----------------------------------------------------------------
   // 4. 恢复完整的页面 JSX (Header, Tabs, Container)
   // -----------------------------------------------------------------
@@ -247,6 +438,8 @@ export default function DocumentReportSystem() {
                 onSetEditingNodeId={setEditingNodeId}
                 onSetEditingNodeName={setEditingNodeName}
                 onUpdateNodeName={handleUpdateDocumentNodeName}
+                onFileUpload={handleLibraryFileUpload}
+            onAttachmentFileUpload={handleAttachmentFileUpload}
               />
             </div>
 
@@ -332,6 +525,10 @@ export default function DocumentReportSystem() {
             setEditingNodeId={setEditingNodeId}
             setEditingNodeName={setEditingNodeName}
             setDraggedNode={setDraggedNode}
+            onFileUpload={handleLibraryFileUpload}
+            onAttachmentFileUpload={handleAttachmentFileUpload}
+            onDocumentSelectionUpload={handleDocumentSelectionUpload} // <--- 新增
+            onReportInfoUpload={handleAttachmentFileUpload} // <--- 新增
           />
         )}
       </div>

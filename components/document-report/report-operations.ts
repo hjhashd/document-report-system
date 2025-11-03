@@ -86,30 +86,6 @@ export const deleteReport = (reportId: string, reports: any[], setReports: (repo
   setReports(reports.filter((r) => r.id !== reportId))
 }
 
-export const handleFileUpload = (
-  e: React.ChangeEvent<HTMLInputElement>,
-  fileType: "style" | "bidding",
-  styleDocFiles: UploadedFile[],
-  biddingFiles: UploadedFile[],
-  setStyleDocFiles: (files: UploadedFile[]) => void,
-  setBiddingFiles: (files: UploadedFile[]) => void
-) => {
-  const files = Array.from(e.target.files || [])
-  const fileData = files.map((file) => ({
-    id: "file-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    uploadDate: new Date().toISOString(),
-  }))
-
-  if (fileType === "style") {
-    setStyleDocFiles([...styleDocFiles, ...fileData])
-  } else if (fileType === "bidding") {
-    setBiddingFiles([...biddingFiles, ...fileData])
-  }
-}
-
 export const removeUploadedFile = (
   fileId: string,
   fileType: "style" | "bidding",

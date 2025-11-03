@@ -28,4 +28,5 @@ export interface UploadedFile {
   size: number
   type: string
   uploadDate: string
+  content?: string // 新增这一行
 }

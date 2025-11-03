@@ -18,8 +18,13 @@ interface ReportInfoProps {
   setReportName: (name: string) => void
   styleDocFiles: UploadedFile[]
   biddingFiles: UploadedFile[]
-  onStyleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
-  onBiddingFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+  
+  // --- ↓↓↓ 修改 Props ↓↓↓ --- 
+  onReportInfoUpload: (e: React.ChangeEvent<HTMLInputElement>, fileType: "style" | "bidding") => void
+  // onStyleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <-- 删除 
+  // onBiddingFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <-- 删除 
+  // --- ↑↑↑ 修改结束 ↑↑↑ ---
+  
   onRemoveStyleFile: (fileId: string) => void
   onRemoveBiddingFile: (fileId: string) => void
   onGenerateReport: () => void
@@ -32,8 +37,13 @@ export function ReportInfo({
   setReportName,
   styleDocFiles,
   biddingFiles,
-  onStyleFileUpload,
-  onBiddingFileUpload,
+  
+  // --- ↓↓↓ 修改 Props ↓↓↓ --- 
+  onReportInfoUpload,
+  // onStyleFileUpload, // <-- 删除 
+  // onBiddingFileUpload, // <-- 删除 
+  // --- ↑↑↑ 修改结束 ↑↑↑ ---
+  
   onRemoveStyleFile,
   onRemoveBiddingFile,
   onGenerateReport,
@@ -84,7 +94,9 @@ export function ReportInfo({
                   type="file"
                   multiple
                   accept=".doc,.docx,.pdf,.txt,.xls,.xlsx"
-                  onChange={onStyleFileUpload}
+                  // --- ↓↓↓ 修改 onChange ↓↓↓ --- 
+                  onChange={(e) => onReportInfoUpload(e, "style")} // <-- 修改这里
+                  // --- ↑↑↑ 修改结束 ↑↑↑ ---
                   className="hidden"
                 />
               </label>
@@ -134,7 +146,9 @@ export function ReportInfo({
                   type="file"
                   multiple
                   accept=".doc,.docx,.pdf,.txt,.xls,.xlsx"
-                  onChange={onBiddingFileUpload}
+                  // --- ↓↓↓ 修改 onChange ↓↓↓ --- 
+                  onChange={(e) => onReportInfoUpload(e, "bidding")} // <-- 修改这里
+                  // --- ↑↑↑ 修改结束 ↑↑↑ ---
                   className="hidden"
                 />
               </label>

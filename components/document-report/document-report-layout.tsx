@@ -32,9 +32,10 @@ import {
   deleteReportNode,
   saveEditedNodeName,
   handleDragDrop,
+  readFileContent, // <--- 引入
+  addDocumentNodeToTree, // <--- 引入
 } from "./tree-operations"
 
-// ... (你的 interface DocumentReportLayoutProps 保持不变) ...
 interface DocumentReportLayoutProps {
   // Data
   reports: any[]
@@ -87,6 +88,12 @@ interface DocumentReportLayoutProps {
   setEditingNodeId: (nodeId: string | null) => void
   setEditingNodeName: (name: string) => void
   setDraggedNode: (node: ReportNode | null) => void
+  
+  // File upload handler
+  onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onAttachmentFileUpload: (e: React.ChangeEvent<HTMLInputElement>, fileType: "style" | "bidding") => void
+  onDocumentSelectionUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <--- 新增
+  onReportInfoUpload: (e: React.ChangeEvent<HTMLInputElement>, fileType: "style" | "bidding") => void // <--- 新增
 }
 
 
@@ -130,6 +137,10 @@ export function DocumentReportLayout({
   setEditingNodeId,
   setEditingNodeName,
   setDraggedNode,
+  onFileUpload,
+  onAttachmentFileUpload,
+  onDocumentSelectionUpload, // <--- 新增
+  onReportInfoUpload, // <--- 新增
 }: DocumentReportLayoutProps) {
   // Modal states (保持不变)
   const [showNewFolderModal, setShowNewFolderModal] = useState(false)
@@ -247,14 +258,6 @@ export function DocumentReportLayout({
       setEditingNodeId,
       setEditingNodeName
     )
-  }
-
-  const handleStyleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileUpload(e, "style", styleDocFiles, biddingFiles, setStyleDocFiles, setBiddingFiles)
-  }
-
-  const handleBiddingFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileUpload(e, "bidding", styleDocFiles, biddingFiles, setStyleDocFiles, setBiddingFiles)
   }
 
   const handleRemoveStyleFile = (fileId: string) => {
@@ -529,8 +532,9 @@ export function DocumentReportLayout({
                 editingNodeName={editingNodeName}
                 onSetEditingNodeId={setEditingNodeId}
                 onSetEditingNodeName={setEditingNodeName}
-                onUpdateNodeName={handleUpdateDocumentNodeName} // <-- 修复 Bug
+                onUpdateNodeName={handleUpdateDocumentNodeName}
                 onAddDocumentsToReport={handleAddDocumentsToReport}
+                onDocumentSelectionUpload={onDocumentSelectionUpload} // <--- 修改
               />
             </div>
 
@@ -542,8 +546,7 @@ export function DocumentReportLayout({
                 setReportName={setReportName}
                 styleDocFiles={styleDocFiles}
                 biddingFiles={biddingFiles}
-                onStyleFileUpload={handleStyleFileUpload}
-                onBiddingFileUpload={handleBiddingFileUpload}
+                onReportInfoUpload={onReportInfoUpload} // <--- 修改
                 onRemoveStyleFile={handleRemoveStyleFile}
                 onRemoveBiddingFile={handleRemoveBiddingFile}
                 onGenerateReport={handleGenerateReport}

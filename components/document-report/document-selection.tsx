@@ -29,6 +29,7 @@ interface DocumentSelectionProps {
   onSetEditingNodeName: (name: string) => void
   onUpdateNodeName: (nodeId: string, newName: string) => void
   onAddDocumentsToReport: () => void
+  onDocumentSelectionUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <--- 新增
 }
 
 export function DocumentSelection({
@@ -49,6 +50,7 @@ export function DocumentSelection({
   onSetEditingNodeName,
   onUpdateNodeName,
   onAddDocumentsToReport,
+  onDocumentSelectionUpload, // <--- 新增
 }: DocumentSelectionProps) {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false)
@@ -64,11 +66,13 @@ export function DocumentSelection({
     setParentFolder(null)
   }
 
-  const handleUploadFile = () => {
-    // This would be handled by the parent component
-    console.log("Uploading file")
+  // --- ↓↓↓ 修改 handleUploadFile 函数 ↓↓↓ ---
+  const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 调用从 props 传来的新函数
+    onDocumentSelectionUpload(e)
     setShowUploadModal(false)
   }
+  // --- ↑↑↑ 修改结束 ↑↑↑ ---
 
   return (
     <div className="bg-white border rounded-lg p-6">
@@ -149,8 +153,8 @@ export function DocumentSelection({
 
       {/* Upload File Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-25">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">上传文件</h3>
               <button onClick={() => setShowUploadModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -162,6 +166,7 @@ export function DocumentSelection({
               <input
                 type="file"
                 multiple
+                onChange={handleUploadFile}
                 className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
@@ -173,7 +178,6 @@ export function DocumentSelection({
                 取消
               </button>
               <button
-                onClick={handleUploadFile}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 上传
@@ -185,8 +189,8 @@ export function DocumentSelection({
 
       {/* Create Folder Modal */}
       {showCreateFolderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-25">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25"> {/* <-- 同时修复 v4 语法 */}
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">新建文件夹</h3>
               <button onClick={() => setShowCreateFolderModal(false)} className="text-gray-500 hover:text-gray-700">
