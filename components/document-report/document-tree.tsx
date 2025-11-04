@@ -21,6 +21,7 @@ import {
   ArrowLeft,
   HelpCircle,
 } from "lucide-react"
+import { toast } from "sonner"
 
 interface TreeNode {
   id: string
@@ -242,7 +243,7 @@ export function DocumentTree({
             <button
               onClick={() => {
                 // 这里应该实现批量添加到报告的逻辑
-                alert("批量添加功能待实现")
+                toast("批量添加功能待实现")
               }}
               className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
             >

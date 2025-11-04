@@ -8,6 +8,7 @@ import {
   HelpCircle,
   Download,
   ArrowLeft,
+  RefreshCw,
 } from "lucide-react"
 import { UploadedFile } from "./types"
 import { formatFileSize } from "./report-operations"
@@ -29,7 +30,10 @@ interface ReportInfoProps {
   onRemoveBiddingFile: (fileId: string) => void
   onGenerateReport: () => void
   onBackToList: () => void
+  onRegenerateReport?: () => void
   currentView: string
+  isGenerating: boolean
+  reportUrl?: string
 }
 
 export function ReportInfo({
@@ -48,7 +52,10 @@ export function ReportInfo({
   onRemoveBiddingFile,
   onGenerateReport,
   onBackToList,
+  onRegenerateReport,
   currentView,
+  isGenerating,
+  reportUrl,
 }: ReportInfoProps) {
   const [showTips, setShowTips] = useState(false)
 
@@ -184,21 +191,55 @@ export function ReportInfo({
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={onGenerateReport}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            <Download size={16} />
-            生成报告
-          </button>
-          {currentView === "reportCreation" && (
+          {reportUrl ? (
+            // 显示下载按钮
             <button
-              onClick={onBackToList}
-              className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              onClick={() => window.open(reportUrl, '_blank')}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
             >
-              <ArrowLeft size={16} />
-              返回列表
+              <Download size={16} />
+              下载报告
             </button>
+          ) : isGenerating ? (
+            // 显示加载状态
+            <button
+              disabled
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md opacity-80 cursor-not-allowed"
+            >
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              正在生成报告...
+            </button>
+          ) : (
+            // 显示生成报告按钮
+            <button
+              onClick={onGenerateReport}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              <Download size={16} />
+              生成报告
+            </button>
+          )}
+          
+          {currentView === "reportCreation" && (
+            reportUrl ? (
+              // 有下载报告时显示"重新生成"按钮
+              <button
+                onClick={onRegenerateReport}
+                className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <RefreshCw size={16} />
+                重新生成
+              </button>
+            ) : (
+              // 没有下载报告时显示"返回列表"按钮
+              <button
+                onClick={onBackToList}
+                className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <ArrowLeft size={16} />
+                返回列表
+              </button>
+            )
           )}
         </div>
       </div>

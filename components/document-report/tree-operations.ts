@@ -1,27 +1,60 @@
 "use client"
 
 import { ReportNode, DocumentNode } from "./types"
+import { toast } from "sonner"
 
 // --- 新增一个辅助函数 ---
 // 功能：使用 FileReader 异步读取文件内容
-export const readFileContent = (file: File): Promise<string> => {
+export const readFileContent = (file: File): Promise<{ content: string | ArrayBuffer, fileType: string }> => {
   return new Promise((resolve, reject) => {
-    // 仅处理文本类文件
-    if (file.type.startsWith("text/") || file.type.includes("markdown")) {
+    const fileType = file.type
+    const fileName = file.name.toLowerCase()
+
+    // 1. 文本类文件
+    if (fileType.startsWith("text/") || fileName.endsWith(".md")) {
       const reader = new FileReader()
       reader.onload = (e) => {
-        resolve(e.target?.result as string)
+        resolve({ content: e.target?.result as string, fileType: fileType })
       }
-      reader.onerror = (e) => {
-        console.error("文件读取失败", e)
-        reject(new Error("文件读取失败"))
+      reader.onerror = reject
+      reader.readAsText(file)
+    
+    // 2. PDF, Word, Excel 等二进制文件
+    } else if (
+      fileType === "application/pdf" || 
+      fileType.includes("officedocument") || // .docx, .xlsx
+      fileType.includes("msword") || // .doc
+      fileType.includes("excel") // .xls
+    ) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const arrayBuffer = e.target?.result as ArrayBuffer
+        
+        // 对于 PDF 文件，创建一个新的 ArrayBuffer 副本以避免 "already detached" 错误
+        if (fileType === "application/pdf" && arrayBuffer) {
+          try {
+            // 创建一个新的 Uint8Array 副本
+            const uint8Array = new Uint8Array(arrayBuffer)
+            // 从 Uint8Array 创建一个新的 ArrayBuffer
+            const newArrayBuffer = uint8Array.buffer.slice(0)
+            resolve({ content: newArrayBuffer, fileType: fileType })
+          } catch (error) {
+            console.error("Error creating PDF ArrayBuffer copy:", error)
+            // 如果创建副本失败，使用原始 ArrayBuffer
+            resolve({ content: arrayBuffer, fileType: fileType })
+          }
+        } else {
+          // 对于其他文件类型，使用原始 ArrayBuffer
+          resolve({ content: arrayBuffer, fileType: fileType })
+        }
       }
-      reader.readAsText(file) // 将文件读为文本
+      reader.onerror = reject
+      reader.readAsArrayBuffer(file) // <-- 读为 ArrayBuffer
+    
     } else {
-      // 对于非文本文件（如 PDF, DOCX），暂时返回提示信息
-      // 后面会讲如何处理它们
-      console.warn(`跳过非文本文件: ${file.name} (${file.type})`)
-      resolve(`[${file.name} - 暂不支持预览此文件类型]`)
+      // 3. 其他 (如图片等)
+      console.warn(`不支持的文件类型: ${fileName} (${fileType})`)
+      resolve({ content: `[不支持预览的文件: ${fileName}]`, fileType: "unsupported" })
     }
   })
 }
@@ -122,18 +155,18 @@ export const addDocumentToReport = (
 ) => {
   const doc = getNode(treeNodes, docId)
   if (!doc || doc.type !== "file") {
-    alert("请选择一个资料文件")
+    toast("请选择一个资料文件")
     return
   }
 
   if (!selectedReportNode) {
-    alert("请先选择报告目录位置")
+    toast("请先选择报告目录位置")
     return
   }
 
   const reportNode = getReportNode(reportStructure, selectedReportNode)
   if (!reportNode || reportNode.type !== "folder") {
-    alert("请选择一个报告目录")
+    toast("请选择一个报告目录")
     return
   }
 
@@ -142,7 +175,7 @@ export const addDocumentToReport = (
   }
 
   if (checkExists(reportNode.children)) {
-    alert("该资料已添加到此目录或其子目录中")
+    toast("该资料已添加到此目录或其子目录中")
     return
   }
 
@@ -175,43 +208,56 @@ export const addDocumentToReport = (
 
 export const addDocumentsToReport = (
   selectedDocuments: Set<string>,
-  treeNodes: DocumentNode[],
-  selectedReportNode: string | null,
-  reportStructure: ReportNode[],
+  treeNodes: DocumentNode[], // 这是最新的 "资料库" 状态
+  targetParentId: string | null, // 这是 "当前报告目录" 中选中的文件夹ID
+  reportStructure: ReportNode[], // 这是当前的 "报告目录" 状态
   setReportStructure: (structure: ReportNode[]) => void,
   setSelectedDocuments: (documents: Set<string>) => void
 ) => {
   if (selectedDocuments.size === 0) {
-    alert("请先选择要添加的资料")
-    return
-  }
-  if (!selectedReportNode) {
-    alert("请先选择报告中的目标目录")
+    toast("请先选择要添加的资料")
     return
   }
 
-  const reportNode = getReportNode(reportStructure, selectedReportNode)
-  if (!reportNode || reportNode.type !== "folder") {
-    alert("请选择一个报告文件夹")
-    return
-  }
-
+  // 1. 查找目标父节点
+  let targetChildrenList: ReportNode[]
+  let parentNode: ReportNode | null = null
   const newStructure = [...reportStructure]
+
+  if (targetParentId) {
+    parentNode = getReportNode(newStructure, targetParentId)
+    if (!parentNode || parentNode.type !== "folder") {
+      toast("请选择一个报告文件夹作为目标位置")
+      return
+    }
+    // 确保 children 数组存在
+    parentNode.children = parentNode.children || []
+    targetChildrenList = parentNode.children
+  } else {
+    // 如果没有选中父节点，则添加到根目录
+    targetChildrenList = newStructure
+  }
+
   let addedCount = 0
 
+  // 2. 遍历选中的文件
   selectedDocuments.forEach((docId) => {
-    const doc = getNode(treeNodes, docId)
-    if (!doc || doc.type !== "file") return
-
-    const checkExists = (children: ReportNode[]): boolean => {
-      return children.some((child) => child.sourceId === docId || (child.children && checkExists(child.children)))
-    }
-
-    if (checkExists(reportNode.children)) {
-      console.warn(`Document ${doc.name} already exists in the selected report folder.`)
+    const doc = getNode(treeNodes, docId) // 从最新的资料库中获取文件信息
+    if (!doc || doc.type !== "file") {
+      console.warn(`未在资料库中找到 ID: ${docId}，跳过添加。`)
       return
     }
 
+    // 3. 检查是否已存在
+    const checkExists = (children: ReportNode[]): boolean => {
+      return children.some((child) => child.sourceId === docId || (child.children && checkExists(child.children)))
+    }
+    if (checkExists(targetChildrenList)) {
+      console.warn(`资料 ${doc.name} 已存在于目标目录中，跳过。`)
+      return
+    }
+
+    // 4. 创建新的报告节点
     const newDocRef: ReportNode = {
       id: "report-doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
       name: doc.name,
@@ -221,27 +267,20 @@ export const addDocumentsToReport = (
       content: doc.content,
     }
 
-    const addToNode = (nodes: ReportNode[]): boolean => {
-      for (const node of nodes) {
-        if (node.id === selectedReportNode) {
-          node.children.push(newDocRef)
-          return true
-        }
-        if (node.children && addToNode(node.children)) {
-          return true
-        }
-      }
-      return false
-    }
-
-    if (addToNode(newStructure)) {
-      addedCount++
-    }
+    // 5. 添加到目标列表
+    targetChildrenList.push(newDocRef)
+    addedCount++
   })
 
+  // 6. 更新状态
   setReportStructure(newStructure)
-  setSelectedDocuments(new Set())
-  alert(`成功添加 ${addedCount} 个资料到报告！`)
+  setSelectedDocuments(new Set()) // 清空选择
+  
+  if (addedCount > 0) {
+    toast.success(`成功添加 ${addedCount} 个资料到报告！`)
+  } else {
+    toast.info("没有新的资料被添加（可能已存在）。")
+  }
 }
 
 export const deleteReportNode = (
@@ -283,7 +322,7 @@ export const saveEditedNodeName = (
   setEditingNodeName: (name: string) => void
 ) => {
   if (!editingNodeName.trim()) {
-    alert("目录名称不能为空")
+    toast.error("目录名称不能为空")
     return
   }
 
@@ -358,21 +397,24 @@ export const addDocumentNodeToTree = (
   newNode: DocumentNode,
   parentId: string | null
 ): DocumentNode[] => {
-  const newNodes = [...nodes]
-  
   // 1. 设置新节点的 parentId
   newNode.parentId = parentId
-
-  // 2. 将新节点添加到数组
-  newNodes.push(newNode)
-
-  // 3. 如果有父节点，将此文件ID添加到父节点的 children 数组
-  if (parentId) {
-    const parentNode = newNodes.find((n) => n.id === parentId)
-    if (parentNode && parentNode.type === "folder") {
-      parentNode.children = parentNode.children ? [...parentNode.children, newNode.id] : [newNode.id]
-    }
+  
+  // 2. 如果没有父节点，直接添加到根部
+  if (!parentId) {
+    return [...nodes, newNode]
   }
 
-  return newNodes
+  // 3. 如果有父节点，必须以不可变的方式更新父节点
+  return nodes.map(node => {
+    if (node.id === parentId && node.type === "folder") {
+      // 找到了父节点，返回一个更新了 children 的新父节点对象
+      return {
+        ...node,
+        children: node.children ? [...node.children, newNode.id] : [newNode.id]
+      }
+    }
+    // 其他节点保持不变
+    return node
+  }).concat(newNode) // 4. 别忘了把新节点本身也添加到数组中
 }

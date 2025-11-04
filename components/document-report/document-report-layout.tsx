@@ -149,6 +149,10 @@ export function DocumentReportLayout({
   const [showCreateLibraryModal, setShowCreateLibraryModal] = useState(false)
   const [libraryDirectoryName, setLibraryDirectoryName] = useState("")
   
+  // 报告生成状态
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [reportUrl, setReportUrl] = useState<string | undefined>(undefined)
+  
   // -----------------------------------------------------------------
   // 你的所有 handler functions (保持不变)
   // -----------------------------------------------------------------
@@ -269,7 +273,33 @@ export function DocumentReportLayout({
   }
 
   const handleGenerateReport = () => {
-    generateReport(reportName, reportStructure, setReportName)
+    // 设置生成状态为true
+    setIsGenerating(true)
+    setReportUrl(undefined)
+    
+    // 模拟生成报告的过程
+    setTimeout(() => {
+      // 模拟从本地upload目录获取文件
+      // 在实际应用中，这里应该调用后端API获取生成的报告URL
+      const mockReportUrl = "/uploads/sample-report.pdf"
+      setReportUrl(mockReportUrl)
+      setIsGenerating(false)
+    }, 5000) // 模拟5秒的生成时间
+  }
+
+  const handleRegenerateReport = () => {
+    // 重置报告状态，重新开始生成过程
+    setReportUrl(undefined)
+    setIsGenerating(true)
+    
+    // 模拟重新生成报告的过程
+    setTimeout(() => {
+      // 模拟从本地upload目录获取文件
+      // 在实际应用中，这里应该调用后端API获取生成的报告URL
+      const mockReportUrl = "/uploads/sample-report.pdf"
+      setReportUrl(mockReportUrl)
+      setIsGenerating(false)
+    }, 5000) // 模拟5秒的生成时间
   }
 
   const handleBackToList = () => {
@@ -551,7 +581,10 @@ export function DocumentReportLayout({
                 onRemoveBiddingFile={handleRemoveBiddingFile}
                 onGenerateReport={handleGenerateReport}
                 onBackToList={handleBackToList}
+                onRegenerateReport={handleRegenerateReport}
                 currentView={currentView}
+                isGenerating={isGenerating}
+                reportUrl={reportUrl}
               />
             </div>
           </div>

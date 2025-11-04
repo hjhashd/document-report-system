@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件上传测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 8px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>文件上传API测试</h1>
+    <form id="uploadForm">
+        <div class="form-group">
+            <label for="file">选择文件:</label>
+            <input type="file" id="file" name="file" required>
+        </div>
+        <div class="form-group">
+            <label for="parentId">父级ID (可选):</label>
+            <input type="text" id="parentId" name="parentId" placeholder="例如: null 或文件夹ID">
+        </div>
+        <button type="submit">上传文件</button>
+    </form>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>上传结果:</h3>
+        <pre id="resultContent"></pre>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('file');
+            const parentIdInput = document.getElementById('parentId');
+            const resultDiv = document.getElementById('result');
+            const resultContent = document.getElementById('resultContent');
+            
+            if (!fileInput.files[0]) {
+                alert('请选择一个文件');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('parentId', parentIdInput.value || 'null');
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                resultContent.textContent = JSON.stringify(data, null, 2);
+                resultDiv.style.display = 'block';
+                
+                if (response.ok) {
+                    resultDiv.style.backgroundColor = '#dff0d8';
+                    resultDiv.style.borderColor = '#d6e9c6';
+                } else {
+                    resultDiv.style.backgroundColor = '#f2dede';
+                    resultDiv.style.borderColor = '#ebccd1';
+                }
+            } catch (error) {
+                resultContent.textContent = '错误: ' + error.message;
+                resultDiv.style.display = 'block';
+                resultDiv.style.backgroundColor = '#f2dede';
+                resultDiv.style.borderColor = '#ebccd1';
+            }
+        });
+    </script>
+</body>
+</html>

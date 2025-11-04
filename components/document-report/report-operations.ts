@@ -1,6 +1,7 @@
 "use client"
 
 import { ReportNode, DocumentNode, UploadedFile } from "./types"
+import { toast } from "sonner"
 
 export const createNewReport = (
   setReportName: (name: string) => void,
@@ -31,12 +32,12 @@ export const saveReport = (
   setCurrentView: (view: string) => void
 ) => {
   if (!reportName.trim()) {
-    alert("请输入报告名称")
+    toast.error("请输入报告名称")
     return
   }
 
   if (reportStructure.length === 0) {
-    alert("请至少创建一个报告目录")
+    toast.error("请至少创建一个报告目录")
     return
   }
 
@@ -56,7 +57,7 @@ export const saveReport = (
     setReports([...reports, reportData])
   }
 
-  alert("报告已保存！")
+  toast.success("报告已保存！")
   setCurrentView("reportList")
 }
 
@@ -107,12 +108,12 @@ export const generateReport = (
   setReportName: (name: string) => void
 ) => {
   if (!reportName.trim()) {
-    alert("请输入报告名称")
+    toast.error("请输入报告名称")
     return
   }
 
   if (reportStructure.length === 0) {
-    alert("请至少创建一个报告目录")
+    toast.error("请至少创建一个报告目录")
     return
   }
 
@@ -125,7 +126,7 @@ export const generateReport = (
   }
 
   if (!hasDocuments(reportStructure)) {
-    alert("请至少添加一个资料")
+    toast.error("请至少添加一个资料")
     return
   }
 
@@ -162,7 +163,7 @@ export const generateReport = (
   element.click()
   document.body.removeChild(element)
 
-  alert("报告已生成并下载！")
+  toast.success("报告已生成并下载！")
 }
 
 export const formatFileSize = (bytes: number): string => {

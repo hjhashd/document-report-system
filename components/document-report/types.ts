@@ -8,8 +8,9 @@ export interface DocumentNode {
   children?: string[]
   uploadDate?: string
   description?: string
-  content?: string
+  content?: string | ArrayBuffer
   fileSize?: number
+  fileType?: string
 }
 
 export interface ReportNode {
@@ -19,7 +20,8 @@ export interface ReportNode {
   children?: ReportNode[]
   sourceId?: string
   description?: string
-  content?: string
+  content?: string | ArrayBuffer
+  fileType?: string
 }
 
 export interface UploadedFile {
@@ -28,5 +30,6 @@ export interface UploadedFile {
   size: number
   type: string
   uploadDate: string
-  content?: string // 新增这一行
+  content?: string | ArrayBuffer
+  fileType?: string
 }
