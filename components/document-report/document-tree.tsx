@@ -46,6 +46,8 @@ interface DocumentTreeProps {
   selectedDocuments: Set<string>
   onToggleDocumentSelection: (docId: string) => void
   onAddDocumentToReport: (docId: string) => void
+  onAddDocumentsToReport: () => void
+  onAddFolderDocumentsToReport: (folderId: string) => void
   selectedReportNode: string | null
   editingNodeId: string | null
   editingNodeName: string
@@ -65,6 +67,8 @@ export function DocumentTree({
   selectedDocuments,
   onToggleDocumentSelection,
   onAddDocumentToReport,
+  onAddDocumentsToReport,
+  onAddFolderDocumentsToReport,
   selectedReportNode,
   editingNodeId,
   editingNodeName,
@@ -195,6 +199,21 @@ export function DocumentTree({
               </button>
             </div>
           )}
+          
+          {node.type === "folder" && selectedReportNode && (
+            <div className="flex items-center gap-1 ml-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAddFolderDocumentsToReport(nodeId)
+                }}
+                className="p-0.5 text-gray-400 hover:text-green-600 rounded"
+                title={`批量添加文件夹内所有文档到${selectedReportNode ? '当前选中的报告文件夹' : '根目录'}`}
+              >
+                <Download size={12} />
+              </button>
+            </div>
+          )}
         </div>
         
         {node.type === "folder" && isExpanded && node.children && (
@@ -241,10 +260,7 @@ export function DocumentTree({
               已选择 {selectedDocuments.size} 个文档
             </span>
             <button
-              onClick={() => {
-                // 这里应该实现批量添加到报告的逻辑
-                toast("批量添加功能待实现")
-              }}
+              onClick={onAddDocumentsToReport}
               className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
             >
               批量添加

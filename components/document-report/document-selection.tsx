@@ -29,6 +29,7 @@ interface DocumentSelectionProps {
   onSetEditingNodeName: (name: string) => void
   onUpdateNodeName: (nodeId: string, newName: string) => void
   onAddDocumentsToReport: () => void
+  onAddFolderDocumentsToReport: (folderId: string) => void
   onDocumentSelectionUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <--- 新增
 }
 
@@ -50,6 +51,7 @@ export function DocumentSelection({
   onSetEditingNodeName,
   onUpdateNodeName,
   onAddDocumentsToReport,
+  onAddFolderDocumentsToReport,
   onDocumentSelectionUpload, // <--- 新增
 }: DocumentSelectionProps) {
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -111,23 +113,25 @@ export function DocumentSelection({
 
       <div className="border rounded-md h-96 overflow-hidden">
         <DocumentTree
-          treeNodes={treeNodes}
-          expandedNodes={expandedNodes}
-          selectedNode={selectedNode}
-          onToggleNode={onToggleNode}
-          onSelectNode={onSelectNode}
-          documentSearchQuery={documentSearchQuery}
-          onDocumentSearchChange={onDocumentSearchChange}
-          selectedDocuments={selectedDocuments}
-          onToggleDocumentSelection={onToggleDocumentSelection}
-          onAddDocumentToReport={onAddDocumentToReport}
-          selectedReportNode={selectedReportNode}
-          editingNodeId={editingNodeId}
-          editingNodeName={editingNodeName}
-          onSetEditingNodeId={onSetEditingNodeId}
-          onSetEditingNodeName={onSetEditingNodeName}
-          onUpdateNodeName={onUpdateNodeName}
-        />
+            treeNodes={treeNodes}
+            expandedNodes={expandedNodes}
+            selectedNode={selectedNode}
+            onToggleNode={onToggleNode}
+            onSelectNode={onSelectNode}
+            documentSearchQuery={documentSearchQuery}
+            onDocumentSearchChange={onDocumentSearchChange}
+            selectedDocuments={selectedDocuments}
+            onToggleDocumentSelection={onToggleDocumentSelection}
+            onAddDocumentToReport={onAddDocumentToReport}
+            onAddDocumentsToReport={onAddDocumentsToReport}
+            onAddFolderDocumentsToReport={onAddFolderDocumentsToReport}
+            selectedReportNode={selectedReportNode}
+            editingNodeId={editingNodeId}
+            editingNodeName={editingNodeName}
+            onSetEditingNodeId={onSetEditingNodeId}
+            onSetEditingNodeName={onSetEditingNodeName}
+            onUpdateNodeName={onUpdateNodeName}
+          />
       </div>
 
       {selectedDocuments.size > 0 && (

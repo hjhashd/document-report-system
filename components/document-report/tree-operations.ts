@@ -283,6 +283,113 @@ export const addDocumentsToReport = (
   }
 }
 
+export const getFolderDocuments = (
+  folderId: string,
+  treeNodes: DocumentNode[]
+): DocumentNode[] => {
+  const folder = getNode(treeNodes, folderId)
+  if (!folder || folder.type !== "folder") {
+    return []
+  }
+
+  const documents: DocumentNode[] = []
+  
+  // 递归获取文件夹内的所有文档
+  const traverseFolder = (nodeId: string) => {
+    const node = getNode(treeNodes, nodeId)
+    if (!node) return
+    
+    if (node.type === "file") {
+      documents.push(node)
+    } else if (node.type === "folder" && node.children) {
+      node.children.forEach(childId => traverseFolder(childId))
+    }
+  }
+
+  if (folder.children) {
+    folder.children.forEach(childId => traverseFolder(childId))
+  }
+
+  return documents
+}
+
+export const addFolderDocumentsToReport = (
+  folderId: string,
+  treeNodes: DocumentNode[],
+  targetParentId: string | null,
+  reportStructure: ReportNode[],
+  setReportStructure: (structure: ReportNode[]) => void
+) => {
+  const folder = getNode(treeNodes, folderId)
+  if (!folder || folder.type !== "folder") {
+    toast("请选择一个文件夹")
+    return
+  }
+
+  const folderDocuments = getFolderDocuments(folderId, treeNodes)
+  
+  if (folderDocuments.length === 0) {
+    toast("该文件夹中没有文档")
+    return
+  }
+
+  // 1. 查找目标父节点
+  let targetChildrenList: ReportNode[]
+  let parentNode: ReportNode | null = null
+  const newStructure = [...reportStructure]
+
+  if (targetParentId) {
+    parentNode = getReportNode(newStructure, targetParentId)
+    if (!parentNode || parentNode.type !== "folder") {
+      toast("请选择一个报告文件夹作为目标位置")
+      return
+    }
+    // 确保 children 数组存在
+    parentNode.children = parentNode.children || []
+    targetChildrenList = parentNode.children
+  } else {
+    // 如果没有选中父节点，则添加到根目录
+    targetChildrenList = newStructure
+  }
+
+  let addedCount = 0
+
+  // 2. 遍历文件夹内的所有文档
+  folderDocuments.forEach((doc) => {
+    // 3. 检查是否已存在
+    const checkExists = (children: ReportNode[]): boolean => {
+      return children.some((child) => child.sourceId === doc.id || (child.children && checkExists(child.children)))
+    }
+    if (checkExists(targetChildrenList)) {
+      console.warn(`资料 ${doc.name} 已存在于目标目录中，跳过。`)
+      return
+    }
+
+    // 4. 创建新的报告节点
+    const newDocRef: ReportNode = {
+      id: "report-doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
+      name: doc.name,
+      type: "file",
+      sourceId: doc.id,
+      description: doc.description,
+      content: doc.content,
+    }
+
+    // 5. 添加到目标列表
+    targetChildrenList.push(newDocRef)
+    addedCount++
+  })
+
+  // 6. 更新状态
+  setReportStructure(newStructure)
+  
+  if (addedCount > 0) {
+    toast.success(`成功从文件夹 "${folder.name}" 添加 ${addedCount} 个资料到报告！`)
+  } else {
+    toast.info("没有新的资料被添加（可能已存在）。")
+  }
+}
+
 export const deleteReportNode = (
   nodeId: string,
   reportStructure: ReportNode[],

@@ -29,6 +29,8 @@ import {
   deepCopyStructure,
   addDocumentToReport,
   addDocumentsToReport,
+  getFolderDocuments,
+  addFolderDocumentsToReport,
   deleteReportNode,
   saveEditedNodeName,
   handleDragDrop,
@@ -207,6 +209,17 @@ export function DocumentReportLayout({
       reportStructure,
       setReportStructure,
       setSelectedDocuments
+    )
+  }
+
+  // 处理批量添加文件夹内的所有文档到报告
+  const handleAddFolderDocumentsToReport = (folderId: string) => {
+    addFolderDocumentsToReport(
+      folderId,
+      treeNodes,
+      selectedReportNode,
+      reportStructure,
+      setReportStructure
     )
   }
 
@@ -557,13 +570,14 @@ export function DocumentReportLayout({
                 selectedDocuments={selectedDocuments}
                 onToggleDocumentSelection={handleToggleDocumentSelection}
                 onAddDocumentToReport={handleAddDocumentToReport}
+                onAddDocumentsToReport={handleAddDocumentsToReport}
+                onAddFolderDocumentsToReport={handleAddFolderDocumentsToReport}
                 selectedReportNode={selectedReportNode}
                 editingNodeId={editingNodeId}
                 editingNodeName={editingNodeName}
                 onSetEditingNodeId={setEditingNodeId}
                 onSetEditingNodeName={setEditingNodeName}
                 onUpdateNodeName={handleUpdateDocumentNodeName}
-                onAddDocumentsToReport={handleAddDocumentsToReport}
                 onDocumentSelectionUpload={onDocumentSelectionUpload} // <--- 修改
               />
             </div>
