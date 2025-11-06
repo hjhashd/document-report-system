@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FolderOpen, FileText, ChevronRight, File, Folder, Eye } from "lucide-react"
+import { FolderOpen, FileText, ChevronRight, File, Folder, Eye, UploadCloud } from "lucide-react" // 添加了 UploadCloud 图标
 
 // 导入你的新布局组件和类型
 import { DocumentReportLayout } from "@/components/document-report/document-report-layout"
@@ -11,6 +11,7 @@ import { DocumentNode, ReportNode, UploadedFile } from "@/components/document-re
 import { DocumentTree } from "@/components/document-report/document-tree"
 import { FlowchartLink } from "@/components/flowchart-link"
 import { DocumentPreview } from "@/components/document-report/document-preview"
+import { MyUploadsTree } from "@/components/document-report/my-uploads-tree" // 导入 MyUploadsTree
 
 // 导入你的操作函数（资料库视图需要）
 import { getNode, getNodePath, readFileContent, getReportNode, addDocumentsToReport, addDocumentNodeToTree } from "@/components/document-report/tree-operations"
@@ -50,9 +51,9 @@ const INITIAL_REPORT_LIBRARY: ReportNode[] = [
 
 export default function DocumentReportSystem() {
   // -----------------------------------------------------------------
-  // 2. 恢复 activeTab 状态
+  // 2. 恢复 activeTab 状态（现在有三个可能的值）
   // -----------------------------------------------------------------
-  const [activeTab, setActiveTab] = useState("report") // 默认为 "report"
+  const [activeTab, setActiveTab] = useState("report") // "report", "library", "uploads"
 
   // --- 你的所有状态（保持不变） ---
   const [reports, setReports] = useState<any[]>([])
@@ -75,34 +76,43 @@ export default function DocumentReportSystem() {
   const [editingNodeName, setEditingNodeName] = useState("")
   const [draggedNode, setDraggedNode] = useState<ReportNode | null>(null)
 
-  // --- ↓↓↓ 1. 添加新 State ↓↓↓ ---
+  // --- 添加新 State ---
   const [myUploadsNodes, setMyUploadsNodes] = useState<DocumentNode[]>([])
-  // --- ↑↑↑ 添加结束 ↑↑↑ ---
 
-  // --- ↓↓↓ 添加此 useEffect ↓↓↓ ---
+  // --- 添加这个新 State ---
+  const [selectedUploadNodeId, setSelectedUploadNodeId] = useState<string | null>(null)
+
+  // --- 添加此 useEffect：首次加载就拉取资料库结构 ---
   useEffect(() => {
-    // 当用户点击 "资料库" 标签页时，且数据尚未加载时
-    if (activeTab === "library" && treeNodes.length === 0) {
+    if (treeNodes.length === 0) {
       console.log("正在获取资料库结构...");
-      fetch('/api/library') // <--- 请求你在任务1创建的 API
+      fetch('/api/library')
         .then(res => res.json())
         .then((data: DocumentNode[]) => {
-          setTreeNodes(data);
-
+          setTreeNodes(data)
           // 自动展开所有第一层级的文件夹
-          const rootFolders = data.filter(n => n.type === 'folder' && !n.parentId).map(n => n.id);
-          setExpandedNodes(new Set(rootFolders));
+          const rootFolders = data
+            .filter(n => n.type === 'folder' && !n.parentId)
+            .map(n => n.id)
+          setExpandedNodes(new Set(rootFolders))
         })
-        .catch(err => console.error("获取资料库失败:", err));
+        .catch(err => console.error("获取资料库失败:", err))
     }
-  }, [activeTab, treeNodes.length, setExpandedNodes]); // 依赖 activeTab
-  // --- ↑↑↑ 添加结束 ↑↑↑ ---
+  }, [treeNodes.length])
 
   // -----------------------------------------------------------------
-  // 3. 恢复资料库视图需要的辅助函数
+  // 3. 辅助函数 (为新页面准备)
   // -----------------------------------------------------------------
   const getNodeFromTree = (id: string) => getNode(treeNodes, id)
   const getPathForNode = (nodeId: string) => getNodePath(treeNodes, nodeId)
+
+  // --- 为新页面添加这两个辅助函数 ---
+  // 用于 "我的上传" 标签页
+  const nodeFromUploads = getNode(myUploadsNodes, selectedUploadNodeId)
+  const getPathForUploadNode = (nodeId: string) => {
+    const node = getNode(myUploadsNodes, nodeId)
+    return "我的上传 / " + (node ? node.name : "")
+  }
 
   // 辅助函数：检查节点是否为文件夹
   const isFolderNode = (nodes: DocumentNode[], nodeId: string | null): boolean => {
@@ -144,6 +154,22 @@ export default function DocumentReportSystem() {
       treeNodes.map((node) =>
         node.id === nodeId ? { ...node, name: newName.trim() } : node
       )
+    )
+  }
+
+  // 为 "我的上传" 添加重命名和删除 Handler
+  const handleUpdateMyUploadsNodeName = (nodeId: string, newName: string) => {
+    if (!newName.trim()) return
+    setMyUploadsNodes(
+      myUploadsNodes.map((node) =>
+        node.id === nodeId ? { ...node, name: newName.trim() } : node
+      )
+    )
+  }
+
+  const handleDeleteMyUploadsNode = (nodeId: string) => {
+    setMyUploadsNodes(
+      myUploadsNodes.filter((node) => node.id !== nodeId)
     )
   }
 
@@ -215,16 +241,8 @@ export default function DocumentReportSystem() {
     // 等待所有文件都处理完毕
     const fileData = await Promise.all(fileDataPromises)
     
-    // --- ↓↓↓ 这是核心修改 ↓↓↓ ---
     // 将新文件添加到 "我的上传" state
     setMyUploadsNodes(prevNodes => [...prevNodes, ...fileData])
-    // --- ↑↑↑ 核心修改结束 ↑↑↑ ---
-
-    // --- 移除以下逻辑 ---
-    // (不再添加到资料库 treeNodes)
-    /*
-    setTreeNodes([...treeNodes, ...fileData])
-    */
   }
 
   // --- 处理报告信息上传（右侧面板的上传按钮）---
@@ -278,43 +296,8 @@ export default function DocumentReportSystem() {
       status: uploadResult?.status || "LOCAL",
     }))
     
-    // --- ↓↓↓ 这是核心修改 ↓↓↓ ---
     // 将新文件添加到 "我的上传" state
     setMyUploadsNodes(prevNodes => [...prevNodes, ...newDocNodes])
-    // --- ↑↑↑ 核心修改结束 ↑↑↑ ---
-
-    // --- 移除以下逻辑 ---
-    // (不再添加到资料库 treeNodes)
-    /*
-    let newTreeNodes = [...treeNodes]
-    for (const newNode of newDocNodes) {
-      newTreeNodes = addDocumentNodeToTree(newTreeNodes, newNode, libraryParentId)
-    }
-    setTreeNodes(newTreeNodes) // 更新资料库
-
-    if (libraryParentId) {
-      setExpandedNodes(new Set([...expandedNodes, libraryParentId]))
-    }
-    */
-
-    // (不再自动添加到报告)
-    /*
-    const newDocIds = new Set(newDocNodes.map(node => node.id))
-    
-    // 现在这个函数可以正确处理 reportParentId 为 null 的情况了
-    addDocumentsToReport(
-      newDocIds,
-      newTreeNodes,
-      reportParentId,
-      reportStructure,
-      setReportStructure,
-      setSelectedDocuments
-    )
-
-    if (reportParentId) {
-      setExpandedReportNodes(new Set([...expandedReportNodes, reportParentId]))
-    }
-    */
   }
 
   // --- 处理文档选择上传（中间面板的上传按钮，专门用于报告目录）---
@@ -325,7 +308,6 @@ export default function DocumentReportSystem() {
     // --- 准备工作 ---
     // 1. "我的上传" 目录总是根目录
     const parentId = null
-    // const reportParentId = ... // (不再需要)
 
     // 2. 异步读取所有文件并上传到后端
     const readFiles: { file: File; content: string | ArrayBuffer; fileType: string; uploadResult?: { docId: string; status: string } }[] = []
@@ -349,46 +331,9 @@ export default function DocumentReportSystem() {
       status: uploadResult?.status || "LOCAL",
     }))
     
-    // --- ↓↓↓ 这是核心修改 ↓↓↓ ---
     // 将新文件添加到 "我的上传" state
     setMyUploadsNodes(prevNodes => [...prevNodes, ...newDocNodes])
-    // --- ↑↑↑ 核心修改结束 ↑↑↑ ---
-
-    // --- 移除以下逻辑 ---
-    // (不再添加到资料库 treeNodes)
-    /*
-    let newTreeNodes = [...treeNodes]
-    for (const newNode of newDocNodes) {
-      newTreeNodes = addDocumentNodeToTree(newTreeNodes, newNode, libraryParentId)
-    }
-    setTreeNodes(newTreeNodes)
-    if (libraryParentId) { ... }
-    */
-
-    // (不再自动添加到报告)
-    /*
-    const newDocIds = new Set(newDocNodes.map(node => node.id))
-    addDocumentsToReport(...)
-    if (reportParentId) { ... }
-    */
   }
-
-  // --- ↓↓↓ 3. 为 "我的上传" 添加重命名和删除 Handler ↓↓↓ ---
-  const handleUpdateMyUploadsNodeName = (nodeId: string, newName: string) => {
-    if (!newName.trim()) return
-    setMyUploadsNodes(
-      myUploadsNodes.map((node) =>
-        node.id === nodeId ? { ...node, name: newName.trim() } : node
-      )
-    )
-  }
-
-  const handleDeleteMyUploadsNode = (nodeId: string) => {
-    setMyUploadsNodes(
-      myUploadsNodes.filter((node) => node.id !== nodeId)
-    )
-  }
-  // --- ↑↑↑ 添加结束 ↑↑↑ ---
 
   // 添加文档到报告的处理函数
   const handleAddDocumentToReport = (
@@ -431,12 +376,28 @@ export default function DocumentReportSystem() {
     )
   }
 
+  // --- ↓↓↓ 修复预览处理函数：根据来源切换正确的标签页 ↓↓↓ ---
+  const handlePreviewDocument = (docId: string) => {
+    // 如果是“我的上传”里的文档，则切换到“我的上传”标签并设置选中项
+    const isFromUploads = myUploadsNodes.some(n => n.id === docId)
+    if (isFromUploads) {
+      setActiveTab("uploads")
+      setSelectedUploadNodeId(docId)
+      return
+    }
+
+    // 否则默认切到“资料库”并设置资料库的选中项
+    setActiveTab("library")
+    setSelectedNode(docId)
+  }
+  // --- ↑↑↑ Handler 修复结束 ↑↑↑ ---
+
   // -----------------------------------------------------------------
   // 4. 恢复完整的页面 JSX (Header, Tabs, Container)
   // -----------------------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* --- 这是你丢失的 Header --- */}
+      {/* --- 修改 Header，添加新按钮 --- */}
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
@@ -453,6 +414,21 @@ export default function DocumentReportSystem() {
                   资料库
                 </div>
               </button>
+
+              {/* --- 这是新按钮 --- */}
+              <button
+                onClick={() => setActiveTab("uploads")}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === "uploads" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <UploadCloud size={20} />
+                  我的上传
+                </div>
+              </button>
+              {/* --- 新按钮结束 --- */}
+
               <button
                 onClick={() => setActiveTab("report")}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -498,7 +474,8 @@ export default function DocumentReportSystem() {
                 onSetEditingNodeName={setEditingNodeName}
                 onUpdateNodeName={handleUpdateDocumentNodeName}
                 onFileUpload={handleLibraryFileUpload}
-            onAttachmentFileUpload={handleReportInfoUpload}
+                onAttachmentFileUpload={handleReportInfoUpload}
+                viewMode="library"
               />
             </div>
 
@@ -519,6 +496,38 @@ export default function DocumentReportSystem() {
               )}
             </div>
           </div>
+        ) : activeTab === "uploads" ? (
+          // --- 添加 "我的上传" 视图 ---
+          <div className="flex gap-6 h-[calc(100vh-140px)]">
+            {/* 左侧：我的上传列表 */}
+            <div className="w-80 bg-white rounded-lg shadow p-4 overflow-y-auto flex flex-col">
+              <h2 className="text-lg font-semibold mb-4 px-2">我的上传文件</h2>
+              <MyUploadsTree
+                nodes={myUploadsNodes}
+                viewMode="library" // <-- 设置为预览模式
+                selectedNodeId={selectedUploadNodeId}
+                onSelectNode={setSelectedUploadNodeId}
+                
+                // (在预览模式下，这些 prop 用来禁用编辑功能)
+                onAddDocumentToReport={() => {}}
+                editingNodeId={null}
+                editingNodeName=""
+                onSetEditingNodeId={() => {}}
+                onSetEditingNodeName={() => {}}
+                onUpdateNodeName={() => {}}
+                onDeleteNode={() => {}}
+              />
+            </div>
+            
+            {/* 右侧：预览面板 */}
+            <div className="flex-1 bg-white rounded-lg shadow p-6 overflow-y-auto">
+              <DocumentPreview
+                node={nodeFromUploads}
+                getNodePath={getPathForUploadNode}
+              />
+            </div>
+          </div>
+        // --- "我的上传" 视图结束 ---
         ) : (
           // -----------------------------------------------------------------
           // 6. 渲染你的新布局组件 (Report View)
@@ -568,13 +577,14 @@ export default function DocumentReportSystem() {
             onDocumentSelectionUpload={handleDocumentSelectionUpload} // <--- 新增
             onReportInfoUpload={handleReportInfoUpload} // <--- 新增
             
-            // --- ↓↓↓ 4. 传入新的 State 和 Handlers ↓↓↓ ---
+            // 传入新的 State 和 Handlers
             myUploadsNodes={myUploadsNodes}
             setMyUploadsNodes={setMyUploadsNodes}
             onUpdateMyUploadsNodeName={handleUpdateMyUploadsNodeName}
             onDeleteMyUploadsNode={handleDeleteMyUploadsNode}
             onAddDocumentToReport={handleAddSingleDocumentToReport} // <-- 传入新的函数
-            // --- ↑↑↑ 传入结束 ↑↑↑ ---
+            onToggleDocumentSelection={toggleDocumentSelection}
+            onPreviewDocument={handlePreviewDocument}
           />
         )}
       </div>

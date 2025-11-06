@@ -55,6 +55,8 @@ interface DocumentTreeProps {
   onSetEditingNodeId: (nodeId: string | null) => void
   onSetEditingNodeName: (name: string) => void
   onUpdateNodeName: (nodeId: string, newName: string) => void
+  onPreviewDocument?: (docId: string) => void
+  viewMode?: "library" | "report" // 视图模式：library 或 report
   // 添加"我的上传"相关的处理函数
   onUpdateMyUploadsNodeName?: (nodeId: string, newName: string) => void
   onDeleteMyUploadsNode?: (nodeId: string) => void
@@ -80,6 +82,8 @@ export function DocumentTree({
   onSetEditingNodeId,
   onSetEditingNodeName,
   onUpdateNodeName,
+  onPreviewDocument,
+  viewMode = "library", // 默认为 library 模式
   onUpdateMyUploadsNodeName,
   onDeleteMyUploadsNode,
   onAddDocumentToReportFromMyUploads,
@@ -239,38 +243,60 @@ export function DocumentTree({
           
           {node.type === "file" && (
             <div className="flex items-center gap-1 ml-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleDocumentSelection(nodeId)
-                }}
-                className={`p-0.5 rounded ${
-                  selectedDocuments.has(nodeId)
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-400 hover:text-gray-600"
-                }`}
-                title="选择/取消选择"
-              >
-                <Plus size={12} />
-              </button>
-              
-              {selectedReportNode && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (isMyUploadsNode && onAddDocumentToReportFromMyUploads) {
-                      onAddDocumentToReportFromMyUploads(nodeId)
-                    } else {
-                      onAddDocumentToReport(nodeId)
-                    }
-                  }}
-                  className="p-0.5 text-gray-400 hover:text-green-600 rounded"
-                  title="添加到报告"
-                >
-                  <ArrowRight size={12} />
-                </button>
+              {/* --- 只在 "report" 模式下显示这些按钮 --- */}
+              {viewMode === "report" && (
+                <>
+                  {/* "预览" 按钮 */}
+                  {onPreviewDocument && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onPreviewDocument(nodeId)
+                      }}
+                      className="p-0.5 text-gray-400 hover:text-blue-600 rounded"
+                      title="预览文档"
+                    >
+                      <Eye size={12} />
+                    </button>
+                  )}
+                
+                  {/* "选择/取消选择" 按钮 */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onToggleDocumentSelection(nodeId)
+                    }}
+                    className={`p-0.5 rounded ${
+                      selectedDocuments.has(nodeId)
+                        ? "bg-blue-500 text-white"
+                        : "text-gray-400 hover:text-gray-600"
+                    }`}
+                    title="选择/取消选择"
+                  >
+                    <Plus size={12} />
+                  </button>
+                  
+                  {/* "添加到报告" 按钮 */}
+                  {selectedReportNode && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (isMyUploadsNode && onAddDocumentToReportFromMyUploads) {
+                          onAddDocumentToReportFromMyUploads(nodeId)
+                        } else {
+                          onAddDocumentToReport(nodeId)
+                        }
+                      }}
+                      className="p-0.5 text-gray-400 hover:text-green-600 rounded"
+                      title="添加到报告"
+                    >
+                      <ArrowRight size={12} />
+                    </button>
+                  )}
+                </>
               )}
               
+              {/* "重命名" 按钮 (两个模式下都显示) */}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -283,6 +309,7 @@ export function DocumentTree({
                 <Edit2 size={12} />
               </button>
               
+              {/* "删除" 按钮 (仅在"我的上传"视图中显示) */}
               {isMyUploadsNode && onDeleteMyUploadsNode && (
                 <button
                   onClick={(e) => {
@@ -298,7 +325,7 @@ export function DocumentTree({
             </div>
           )}
           
-          {node.type === "folder" && selectedReportNode && (
+          {node.type === "folder" && selectedReportNode && viewMode === "report" && (
             <div className="flex items-center gap-1 ml-2">
               <button
                 onClick={(e) => {

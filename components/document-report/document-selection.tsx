@@ -32,6 +32,7 @@ interface DocumentSelectionProps {
   onAddDocumentsToReport: () => void
   onAddFolderDocumentsToReport: (folderId: string) => void
   onDocumentSelectionUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onPreviewDocument: (docId: string) => void
   
   // --- ↓↓↓ 新增的 State 和 Handlers ↓↓↓ ---
   myUploadsNodes: any[]
@@ -63,6 +64,7 @@ export function DocumentSelection({
   onAddDocumentsToReport,
   onAddFolderDocumentsToReport,
   onDocumentSelectionUpload, // <--- 新增
+  onPreviewDocument, // <--- 新增预览处理函数
   
   // --- ↓↓↓ 新增的 State 和 Handlers ↓↓↓ ---
   myUploadsNodes,
@@ -173,6 +175,8 @@ export function DocumentSelection({
             onSetEditingNodeId={onSetEditingNodeId}
             onSetEditingNodeName={onSetEditingNodeName}
             onUpdateNodeName={onUpdateNodeName}
+            viewMode="report" // <-- 告知 DocumentTree 它在报告页
+            onPreviewDocument={onPreviewDocument} // <-- 传递预览函数
           />
         ) : (
           <DocumentTree
@@ -197,6 +201,8 @@ export function DocumentSelection({
             onUpdateMyUploadsNodeName={onUpdateMyUploadsNodeName}
             onDeleteMyUploadsNode={onDeleteMyUploadsNode}
             onAddDocumentToReportFromMyUploads={onAddDocumentToReportFromMyUploads}
+            viewMode="report" // <-- 告知 DocumentTree 它在报告页
+            onPreviewDocument={onPreviewDocument} // <-- 传递预览函数
           />
         )}
       </div>

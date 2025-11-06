@@ -97,6 +97,7 @@ interface DocumentReportLayoutProps {
   onAttachmentFileUpload: (e: React.ChangeEvent<HTMLInputElement>, fileType: "style" | "bidding") => void
   onDocumentSelectionUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <--- 新增
   onReportInfoUpload: (e: React.ChangeEvent<HTMLInputElement>, fileType: "style" | "bidding") => void // <--- 新增
+  onPreviewDocument: (docId: string) => void // <--- 新增预览处理函数
   
   // --- ↓↓↓ 新增的 State 和 Handlers ↓↓↓ ---
   myUploadsNodes: DocumentNode[]
@@ -155,6 +156,7 @@ export function DocumentReportLayout({
   onAttachmentFileUpload,
   onDocumentSelectionUpload, // <--- 新增
   onReportInfoUpload, // <--- 新增
+  onPreviewDocument, // <--- 新增预览处理函数
   
   // --- ↓↓↓ 新增的 State 和 Handlers ↓↓↓ ---
   myUploadsNodes,
@@ -677,6 +679,7 @@ export function DocumentReportLayout({
                 onUpdateMyUploadsNodeName={onUpdateMyUploadsNodeName}
                 onDeleteMyUploadsNode={onDeleteMyUploadsNode}
                 onAddDocumentToReportFromMyUploads={handleAddDocumentToReportFromMyUploads}
+                onPreviewDocument={onPreviewDocument}
               />
             </div>
 
@@ -731,5 +734,7 @@ export function DocumentReportLayout({
         }}
       />
     </>
+      
+
   )
 }
