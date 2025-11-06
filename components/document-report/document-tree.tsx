@@ -37,6 +37,7 @@ interface TreeNode {
 
 interface DocumentTreeProps {
   treeNodes: TreeNode[]
+  myUploadsNodes?: TreeNode[] // 添加"我的上传"节点
   expandedNodes: Set<string>
   selectedNode: string | null
   onToggleNode: (nodeId: string) => void
@@ -46,7 +47,6 @@ interface DocumentTreeProps {
   selectedDocuments: Set<string>
   onToggleDocumentSelection: (docId: string) => void
   onAddDocumentToReport: (docId: string) => void
-  onAddDocumentsToReport: () => void
   onAddFolderDocumentsToReport: (folderId: string) => void
   selectedReportNode: string | null
   editingNodeId: string | null
@@ -54,10 +54,15 @@ interface DocumentTreeProps {
   onSetEditingNodeId: (nodeId: string | null) => void
   onSetEditingNodeName: (name: string) => void
   onUpdateNodeName: (nodeId: string, newName: string) => void
+  // 添加"我的上传"相关的处理函数
+  onUpdateMyUploadsNodeName?: (nodeId: string, newName: string) => void
+  onDeleteMyUploadsNode?: (nodeId: string) => void
+  onAddDocumentToReportFromMyUploads?: (docId: string) => void
 }
 
 export function DocumentTree({
   treeNodes,
+  myUploadsNodes,
   expandedNodes,
   selectedNode,
   onToggleNode,
@@ -67,7 +72,6 @@ export function DocumentTree({
   selectedDocuments,
   onToggleDocumentSelection,
   onAddDocumentToReport,
-  onAddDocumentsToReport,
   onAddFolderDocumentsToReport,
   selectedReportNode,
   editingNodeId,
@@ -75,8 +79,19 @@ export function DocumentTree({
   onSetEditingNodeId,
   onSetEditingNodeName,
   onUpdateNodeName,
+  onUpdateMyUploadsNodeName,
+  onDeleteMyUploadsNode,
+  onAddDocumentToReportFromMyUploads,
 }: DocumentTreeProps) {
-  const getNode = (id: string) => treeNodes.find((n) => n.id === id)
+  const getNode = (id: string) => {
+    // 首先在treeNodes中查找
+    let node = treeNodes.find((n) => n.id === id)
+    // 如果找不到，在myUploadsNodes中查找
+    if (!node && myUploadsNodes) {
+      node = myUploadsNodes.find((n) => n.id === id)
+    }
+    return node
+  }
   
   const filterDocuments = (nodes: TreeNode[]) => {
     if (!documentSearchQuery) {
@@ -91,7 +106,7 @@ export function DocumentTree({
     })
   }
 
-  const renderTreeNode = (nodeId: string, level = 0) => {
+  const renderTreeNode = (nodeId: string, level = 0, isFromMyUploads = false) => {
     const node = getNode(nodeId)
     if (!node) return null
 
@@ -99,6 +114,8 @@ export function DocumentTree({
     const isSelected = selectedNode === nodeId
     const isEditing = editingNodeId === nodeId
     const hasChildren = node.children && node.children.length > 0
+    // 判断是否为"我的上传"中的节点
+    const isMyUploadsNode = isFromMyUploads || (myUploadsNodes && myUploadsNodes.some(n => n.id === nodeId))
 
     return (
       <div key={nodeId} className="select-none">
@@ -134,14 +151,22 @@ export function DocumentTree({
               onChange={(e) => onSetEditingNodeName(e.target.value)}
               onBlur={() => {
                 if (editingNodeName.trim()) {
-                  onUpdateNodeName(nodeId, editingNodeName.trim())
+                  if (isMyUploadsNode && onUpdateMyUploadsNodeName) {
+                    onUpdateMyUploadsNodeName(nodeId, editingNodeName.trim())
+                  } else {
+                    onUpdateNodeName(nodeId, editingNodeName.trim())
+                  }
                 }
                 onSetEditingNodeId(null)
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   if (editingNodeName.trim()) {
-                    onUpdateNodeName(nodeId, editingNodeName.trim())
+                    if (isMyUploadsNode && onUpdateMyUploadsNodeName) {
+                      onUpdateMyUploadsNodeName(nodeId, editingNodeName.trim())
+                    } else {
+                      onUpdateNodeName(nodeId, editingNodeName.trim())
+                    }
                   }
                   onSetEditingNodeId(null)
                 } else if (e.key === "Escape") {
@@ -177,7 +202,11 @@ export function DocumentTree({
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    onAddDocumentToReport(nodeId)
+                    if (isMyUploadsNode && onAddDocumentToReportFromMyUploads) {
+                      onAddDocumentToReportFromMyUploads(nodeId)
+                    } else {
+                      onAddDocumentToReport(nodeId)
+                    }
                   }}
                   className="p-0.5 text-gray-400 hover:text-green-600 rounded"
                   title="添加到报告"
@@ -197,6 +226,19 @@ export function DocumentTree({
               >
                 <Edit2 size={12} />
               </button>
+              
+              {isMyUploadsNode && onDeleteMyUploadsNode && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteMyUploadsNode(nodeId)
+                  }}
+                  className="p-0.5 text-gray-400 hover:text-red-600 rounded"
+                  title="删除"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
             </div>
           )}
           
@@ -218,56 +260,37 @@ export function DocumentTree({
         
         {node.type === "folder" && isExpanded && node.children && (
           <div>
-            {node.children.map((childId) => renderTreeNode(childId, level + 1))}
+            {node.children.map((childId) => renderTreeNode(childId, level + 1, isMyUploadsNode))}
           </div>
         )}
       </div>
     )
   }
 
-  const rootNodes = treeNodes.filter((node) => !node.parentId)
+  // 根据是否为"我的上传"视图来决定根节点
+  const isMyUploadsView = myUploadsNodes && myUploadsNodes.length > 0 && 
+    (myUploadsNodes.length > 0 || treeNodes.length === 0)
+  
+  const rootNodes = isMyUploadsView 
+    ? myUploadsNodes.filter((node) => !node.parentId)
+    : treeNodes.filter((node) => !node.parentId)
   const filteredRootNodes = filterDocuments(rootNodes)
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b">
-        <div className="relative">
-          <Search size={16} className="absolute left-2 top-2.5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="搜索文档..."
-            value={documentSearchQuery}
-            onChange={(e) => onDocumentSearchChange(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
+      {/* 搜索框已移除，只保留DocumentSelection中的搜索功能 */}
       
-      <div className="flex-1 overflow-auto p-3">
+      <div className="flex-1 overflow-auto">
         {filteredRootNodes.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
-            {documentSearchQuery ? "未找到匹配的文档" : "暂无文档"}
+            {documentSearchQuery ? "未找到匹配的文档" : (isMyUploadsView ? "暂无上传文档" : "暂无文档")}
           </div>
         ) : (
-          filteredRootNodes.map((node) => renderTreeNode(node.id))
+          filteredRootNodes.map((node) => renderTreeNode(node.id, 0, isMyUploadsView))
         )}
       </div>
       
-      {selectedDocuments.size > 0 && (
-        <div className="p-3 border-t bg-gray-50">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">
-              已选择 {selectedDocuments.size} 个文档
-            </span>
-            <button
-              onClick={onAddDocumentsToReport}
-              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-            >
-              批量添加
-            </button>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }

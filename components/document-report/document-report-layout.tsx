@@ -9,6 +9,7 @@ import { ReportTree } from "./report-tree"
 import { ReportInfo } from "./report-info"
 import { NewReportFolderModal } from "./new-report-folder-modal"
 import { CreateLibraryDirectoryModal } from "./create-library-directory-modal"
+import { MyUploadsTree } from "./my-uploads-tree" // 导入MyUploadsTree组件
 import { ReportNode, DocumentNode, UploadedFile } from "./types"
 import {
   createNewReport,
@@ -96,6 +97,17 @@ interface DocumentReportLayoutProps {
   onAttachmentFileUpload: (e: React.ChangeEvent<HTMLInputElement>, fileType: "style" | "bidding") => void
   onDocumentSelectionUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <--- 新增
   onReportInfoUpload: (e: React.ChangeEvent<HTMLInputElement>, fileType: "style" | "bidding") => void // <--- 新增
+  
+  // --- ↓↓↓ 新增的 State 和 Handlers ↓↓↓ ---
+  myUploadsNodes: DocumentNode[]
+  setMyUploadsNodes: (nodes: DocumentNode[]) => void
+  onUpdateMyUploadsNodeName: (nodeId: string, newName: string) => void
+  onDeleteMyUploadsNode: (nodeId: string) => void
+  onAddDocumentToReport: (docId: string) => void // 修改类型定义以匹配MyUploadsTree组件
+  onAddDocumentToReportFromMyUploads: (docId: string) => void
+  myUploadsSearchQuery: string
+  onMyUploadsSearchChange: (query: string) => void
+  // --- ↑↑↑ 新增结束 ↑↑↑ ---
 }
 
 
@@ -143,6 +155,15 @@ export function DocumentReportLayout({
   onAttachmentFileUpload,
   onDocumentSelectionUpload, // <--- 新增
   onReportInfoUpload, // <--- 新增
+  
+  // --- ↓↓↓ 新增的 State 和 Handlers ↓↓↓ ---
+  myUploadsNodes,
+  setMyUploadsNodes,
+  onUpdateMyUploadsNodeName,
+  onDeleteMyUploadsNode,
+  onAddDocumentToReport,
+  onAddDocumentToReportFromMyUploads,
+  // --- ↑↑↑ 新增结束 ↑↑↑ ---
 }: DocumentReportLayoutProps) {
   // Modal states (保持不变)
   const [showNewFolderModal, setShowNewFolderModal] = useState(false)
@@ -154,6 +175,9 @@ export function DocumentReportLayout({
   // 报告生成状态
   const [isGenerating, setIsGenerating] = useState(false)
   const [reportUrl, setReportUrl] = useState<string | undefined>(undefined)
+  
+  // 搜索状态
+  const [myUploadsSearchQuery, setMyUploadsSearchQuery] = useState('')
   
   // -----------------------------------------------------------------
   // 你的所有 handler functions (保持不变)
@@ -195,6 +219,17 @@ export function DocumentReportLayout({
     addDocumentToReport(
       docId,
       treeNodes,
+      selectedReportNode,
+      reportStructure,
+      setReportStructure
+    )
+  }
+
+  const handleAddDocumentToReportFromMyUploads = (docId: string) => {
+    // 从我的上传中添加文档到报告
+    addDocumentToReport(
+      docId,
+      myUploadsNodes,
       selectedReportNode,
       reportStructure,
       setReportStructure
@@ -557,16 +592,18 @@ export function DocumentReportLayout({
             </div>
 
             {/* --- 第 2 列: 选择资料 (col-span-4) --- */}
-            {/* (DocumentSelection 自带样式, 无需 "box") */}
             <div className="col-span-4 bg-white rounded-lg shadow p-4 overflow-y-auto">
               <DocumentSelection
                 treeNodes={treeNodes}
+                myUploadsNodes={myUploadsNodes}
                 expandedNodes={expandedNodes}
                 selectedNode={selectedNode}
                 onToggleNode={handleToggleNode}
                 onSelectNode={setSelectedNode}
                 documentSearchQuery={documentSearchQuery}
                 onDocumentSearchChange={setDocumentSearchQuery}
+                myUploadsSearchQuery={myUploadsSearchQuery}
+                onMyUploadsSearchChange={setMyUploadsSearchQuery}
                 selectedDocuments={selectedDocuments}
                 onToggleDocumentSelection={handleToggleDocumentSelection}
                 onAddDocumentToReport={handleAddDocumentToReport}
@@ -578,7 +615,10 @@ export function DocumentReportLayout({
                 onSetEditingNodeId={setEditingNodeId}
                 onSetEditingNodeName={setEditingNodeName}
                 onUpdateNodeName={handleUpdateDocumentNodeName}
-                onDocumentSelectionUpload={onDocumentSelectionUpload} // <--- 修改
+                onDocumentSelectionUpload={onDocumentSelectionUpload}
+                onUpdateMyUploadsNodeName={onUpdateMyUploadsNodeName}
+                onDeleteMyUploadsNode={onDeleteMyUploadsNode}
+                onAddDocumentToReportFromMyUploads={handleAddDocumentToReportFromMyUploads}
               />
             </div>
 

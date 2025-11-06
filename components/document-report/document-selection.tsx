@@ -8,6 +8,7 @@ import {
   Plus,
   ArrowRight,
   Check,
+  Upload,
 } from "lucide-react"
 import { DocumentTree } from "./document-tree"
 
@@ -30,7 +31,16 @@ interface DocumentSelectionProps {
   onUpdateNodeName: (nodeId: string, newName: string) => void
   onAddDocumentsToReport: () => void
   onAddFolderDocumentsToReport: (folderId: string) => void
-  onDocumentSelectionUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <--- 新增
+  onDocumentSelectionUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+  
+  // --- ↓↓↓ 新增的 State 和 Handlers ↓↓↓ ---
+  myUploadsNodes: any[]
+  onUpdateMyUploadsNodeName: (nodeId: string, newName: string) => void
+  onDeleteMyUploadsNode: (nodeId: string) => void
+  onAddDocumentToReportFromMyUploads: (docId: string) => void
+  myUploadsSearchQuery: string
+  onMyUploadsSearchChange: (query: string) => void
+  // --- ↑↑↑ 新增结束 ↑↑↑ ---
 }
 
 export function DocumentSelection({
@@ -53,66 +63,99 @@ export function DocumentSelection({
   onAddDocumentsToReport,
   onAddFolderDocumentsToReport,
   onDocumentSelectionUpload, // <--- 新增
+  
+  // --- ↓↓↓ 新增的 State 和 Handlers ↓↓↓ ---
+  myUploadsNodes,
+  onUpdateMyUploadsNodeName,
+  onDeleteMyUploadsNode,
+  onAddDocumentToReportFromMyUploads,
+  myUploadsSearchQuery,
+  onMyUploadsSearchChange,
+  // --- ↑↑↑ 新增结束 ↑↑↑ ---
 }: DocumentSelectionProps) {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false)
   const [folderName, setFolderName] = useState("")
   const [parentFolder, setParentFolder] = useState<string | null>(null)
-
-  const handleCreateFolder = () => {
-    if (!folderName.trim()) return
-    // This would be handled by the parent component
-    console.log("Creating folder:", folderName, "Parent:", parentFolder)
-    setShowCreateFolderModal(false)
-    setFolderName("")
-    setParentFolder(null)
-  }
-
-  // --- ↓↓↓ 修改 handleUploadFile 函数 ↓↓↓ ---
+  
+  // --- ↓↓↓ 新增状态：用于切换视图 ↓↓↓ ---
+  // 添加视图切换状态
+  const [activeView, setActiveView] = useState<"library" | "myUploads">("library")
+  
   const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // 调用从 props 传来的新函数
-    onDocumentSelectionUpload(e)
-    setShowUploadModal(false)
+    const files = e.target.files
+    if (files && files.length > 0) {
+      onDocumentSelectionUpload(e)
+      // 上传后自动切换到"我的上传"视图
+      setActiveView("myUploads")
+    }
   }
-  // --- ↑↑↑ 修改结束 ↑↑↑ ---
-
+  
   return (
-    <div className="bg-white border rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-gray-800">选择资料</h2>
-        <div className="flex gap-2">
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b">
+        <h3 className="text-lg font-medium mb-3">文档选择</h3>
+        
+        {/* 视图切换标签 */}
+        <div className="flex space-x-1 mb-3">
           <button
-            onClick={() => setShowUploadModal(true)}
-            className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100"
-            title="上传文件"
+            onClick={() => setActiveView("library")}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+              activeView === "library"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
           >
-            <FilePlus size={16} />
+            资料库
           </button>
           <button
-            onClick={() => setShowCreateFolderModal(true)}
-            className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100"
-            title="新建文件夹"
+            onClick={() => setActiveView("myUploads")}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+              activeView === "myUploads"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
           >
-            <FolderPlus size={16} />
+            我的上传
           </button>
         </div>
-      </div>
-
-      <div className="mb-4">
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+        
+        {/* 搜索框 - 根据当前视图显示不同的搜索框 */}
+        <div className="relative mb-3">
+          <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="搜索资料..."
-            value={documentSearchQuery}
-            onChange={(e) => onDocumentSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            placeholder={activeView === "library" ? "搜索文档..." : "搜索我的上传..."}
+            value={activeView === "library" ? documentSearchQuery : myUploadsSearchQuery}
+            onChange={(e) => 
+              activeView === "library" 
+                ? onDocumentSearchChange(e.target.value)
+                : onMyUploadsSearchChange(e.target.value)
+            }
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
+        
+        {/* 上传按钮 */}
+        <div className="flex items-center space-x-2">
+          <label className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 cursor-pointer transition-colors">
+            <Upload size={14} className="inline mr-1" />
+            上传文档
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleUploadFile}
+            />
+          </label>
+          <span className="text-xs text-gray-500">支持多选</span>
+        </div>
       </div>
-
-      <div className="border rounded-md h-96 overflow-hidden">
-        <DocumentTree
+      
+      {/* 文档树 */}
+      <div className="flex-1">
+        {activeView === "library" ? (
+          <DocumentTree
             treeNodes={treeNodes}
             expandedNodes={expandedNodes}
             selectedNode={selectedNode}
@@ -123,7 +166,6 @@ export function DocumentSelection({
             selectedDocuments={selectedDocuments}
             onToggleDocumentSelection={onToggleDocumentSelection}
             onAddDocumentToReport={onAddDocumentToReport}
-            onAddDocumentsToReport={onAddDocumentsToReport}
             onAddFolderDocumentsToReport={onAddFolderDocumentsToReport}
             selectedReportNode={selectedReportNode}
             editingNodeId={editingNodeId}
@@ -132,102 +174,52 @@ export function DocumentSelection({
             onSetEditingNodeName={onSetEditingNodeName}
             onUpdateNodeName={onUpdateNodeName}
           />
+        ) : (
+          <DocumentTree
+            treeNodes={[]} // 资料库为空
+            myUploadsNodes={myUploadsNodes} // 使用我的上传节点
+            expandedNodes={expandedNodes}
+            selectedNode={selectedNode}
+            onToggleNode={onToggleNode}
+            onSelectNode={onSelectNode}
+            documentSearchQuery={myUploadsSearchQuery}
+            onDocumentSearchChange={onMyUploadsSearchChange}
+            selectedDocuments={selectedDocuments}
+            onToggleDocumentSelection={onToggleDocumentSelection}
+            onAddDocumentToReport={onAddDocumentToReport}
+            onAddFolderDocumentsToReport={onAddFolderDocumentsToReport}
+            selectedReportNode={selectedReportNode}
+            editingNodeId={editingNodeId}
+            editingNodeName={editingNodeName}
+            onSetEditingNodeId={onSetEditingNodeId}
+            onSetEditingNodeName={onSetEditingNodeName}
+            onUpdateNodeName={onUpdateNodeName}
+            onUpdateMyUploadsNodeName={onUpdateMyUploadsNodeName}
+            onDeleteMyUploadsNode={onDeleteMyUploadsNode}
+            onAddDocumentToReportFromMyUploads={onAddDocumentToReportFromMyUploads}
+          />
+        )}
       </div>
-
-      {selectedDocuments.size > 0 && (
-        <div className="mt-4 p-3 bg-blue-50 rounded-md">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Check size={16} className="text-blue-600" />
-              <span className="text-sm text-blue-800">
-                已选择 {selectedDocuments.size} 个资料
-              </span>
-            </div>
-            <button
-              onClick={onAddDocumentsToReport}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
-            >
-              <Plus size={14} />
-              <span>添加 {selectedDocuments.size} 个资料到报告</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
+      
+      {/* 底部操作栏 */}
+      <div className="p-3 border-t bg-gray-50">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600">
+            已选择 {selectedDocuments.size} 个文档
+          </span>
+          <button
+            onClick={onAddDocumentsToReport}
+            disabled={selectedDocuments.size === 0}
+            className={`px-3 py-1 text-sm rounded transition-colors ${
+              selectedDocuments.size > 0
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            批量添加
+          </button>
         </div>
-      )}
-
-      {/* Upload File Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">上传文件</h3>
-              <button onClick={() => setShowUploadModal(false)} className="text-gray-500 hover:text-gray-700">
-                ×
-              </button>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">选择文件</label>
-              <input
-                type="file"
-                multiple
-                onChange={handleUploadFile}
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="px-4 py-2 rounded border hover:bg-gray-100"
-              >
-                取消
-              </button>
-              <button
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                上传
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Folder Modal */}
-      {showCreateFolderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25"> {/* <-- 同时修复 v4 语法 */}
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">新建文件夹</h3>
-              <button onClick={() => setShowCreateFolderModal(false)} className="text-gray-500 hover:text-gray-700">
-                ×
-              </button>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">文件夹名称</label>
-              <input
-                type="text"
-                value={folderName}
-                onChange={(e) => setFolderName(e.target.value)}
-                placeholder="例如：技术文档"
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowCreateFolderModal(false)}
-                className="px-4 py-2 rounded border hover:bg-gray-100"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleCreateFolder}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                创建
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

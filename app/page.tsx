@@ -75,6 +75,10 @@ export default function DocumentReportSystem() {
   const [editingNodeName, setEditingNodeName] = useState("")
   const [draggedNode, setDraggedNode] = useState<ReportNode | null>(null)
 
+  // --- ↓↓↓ 1. 添加新 State ↓↓↓ ---
+  const [myUploadsNodes, setMyUploadsNodes] = useState<DocumentNode[]>([])
+  // --- ↑↑↑ 添加结束 ↑↑↑ ---
+
   // --- ↓↓↓ 添加此 useEffect ↓↓↓ ---
   useEffect(() => {
     // 当用户点击 "资料库" 标签页时，且数据尚未加载时
@@ -152,9 +156,7 @@ export default function DocumentReportSystem() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      if (parentId) {
-        formData.append('parentId', parentId);
-      }
+      formData.append('parentId', parentId);
       formData.append('fileType', fileType);
 
       const response = await fetch('/api/upload', {
@@ -184,20 +186,24 @@ export default function DocumentReportSystem() {
   ) => {
     const files = Array.from(e.target.files || [])
     
+    // --- 准备工作 ---
+    // "我的上传" 目录总是根目录
+    const myUploadsParentId = null
+    
     // 异步处理所有文件
     const fileDataPromises = files.map(async (file) => {
       // 1. 读取文件内容（保持预览功能）
       const { content, fileType } = await readFileContent(file)
       
       // 2. 调用API上传文件到后端
-      const uploadResult = await handleFileApiUpload(file, parentId, fileType);
+      const uploadResult = await handleFileApiUpload(file, myUploadsParentId, fileType);
       
       // 3. 创建文档节点对象
       return {
         id: uploadResult?.docId || "doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
         name: file.name,
         type: "file" as const,
-        parentId: parentId || selectedNode, // 如果没有指定parentId，则使用当前选中的节点
+        parentId: myUploadsParentId, // <-- 确保为 null
         uploadDate: new Date().toISOString(),
         content: content, // 将读取到的内容存入对象
         fileSize: file.size,
@@ -209,8 +215,16 @@ export default function DocumentReportSystem() {
     // 等待所有文件都处理完毕
     const fileData = await Promise.all(fileDataPromises)
     
-    // 将新文件添加到资料库
+    // --- ↓↓↓ 这是核心修改 ↓↓↓ ---
+    // 将新文件添加到 "我的上传" state
+    setMyUploadsNodes(prevNodes => [...prevNodes, ...fileData])
+    // --- ↑↑↑ 核心修改结束 ↑↑↑ ---
+
+    // --- 移除以下逻辑 ---
+    // (不再添加到资料库 treeNodes)
+    /*
     setTreeNodes([...treeNodes, ...fileData])
+    */
   }
 
   // --- 处理报告信息上传（右侧面板的上传按钮）---
@@ -222,14 +236,14 @@ export default function DocumentReportSystem() {
     if (files.length === 0) return
     
     // --- 准备工作 ---
-    const libraryParentId = isFolderNode(treeNodes, selectedNode) ? selectedNode : null
-    const reportParentId = isReportFolderNode(reportStructure, selectedReportNode) ? selectedReportNode : null
+    // "我的上传" 目录总是根目录
+    const myUploadsParentId = null
     
     const readFiles: { file: File; content: string | ArrayBuffer; fileType: string; uploadResult?: { docId: string; status: string } }[] = []
     for (const file of files) {
       const { content, fileType } = await readFileContent(file)
       // 调用API上传文件到后端
-      const uploadResult = await handleFileApiUpload(file, libraryParentId, fileType);
+      const uploadResult = await handleFileApiUpload(file, myUploadsParentId, fileType);
       readFiles.push({ file, content, fileType, uploadResult })
     }
 
@@ -250,20 +264,28 @@ export default function DocumentReportSystem() {
       setBiddingFiles([...biddingFiles, ...newUploadedFiles])
     }
 
-    // --- 执行逻辑 2: 添加到资料库 (中间面板) ---
+    // --- 执行逻辑: 只添加到 "我的上传" ---
     const newDocNodes: DocumentNode[] = readFiles.map(({ file, content, fileType, uploadResult }) => ({
       id: uploadResult?.docId || "doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
       name: file.name,
       type: "file",
-      parentId: libraryParentId,
+      parentId: myUploadsParentId, // <-- 确保为 null
       uploadDate: new Date().toISOString(),
       description: `上传于 ${new Date().toLocaleDateString()}`,
       content: content,
       fileSize: file.size,
       fileType: fileType,
-      status: uploadResult?.status || "LOCAL", // 添加状态字段
+      status: uploadResult?.status || "LOCAL",
     }))
     
+    // --- ↓↓↓ 这是核心修改 ↓↓↓ ---
+    // 将新文件添加到 "我的上传" state
+    setMyUploadsNodes(prevNodes => [...prevNodes, ...newDocNodes])
+    // --- ↑↑↑ 核心修改结束 ↑↑↑ ---
+
+    // --- 移除以下逻辑 ---
+    // (不再添加到资料库 treeNodes)
+    /*
     let newTreeNodes = [...treeNodes]
     for (const newNode of newDocNodes) {
       newTreeNodes = addDocumentNodeToTree(newTreeNodes, newNode, libraryParentId)
@@ -273,8 +295,10 @@ export default function DocumentReportSystem() {
     if (libraryParentId) {
       setExpandedNodes(new Set([...expandedNodes, libraryParentId]))
     }
+    */
 
-    // --- 执行逻辑 3: 添加到报告结构 (左侧面板) ---
+    // (不再自动添加到报告)
+    /*
     const newDocIds = new Set(newDocNodes.map(node => node.id))
     
     // 现在这个函数可以正确处理 reportParentId 为 null 的情况了
@@ -290,6 +314,7 @@ export default function DocumentReportSystem() {
     if (reportParentId) {
       setExpandedReportNodes(new Set([...expandedReportNodes, reportParentId]))
     }
+    */
   }
 
   // --- 处理文档选择上传（中间面板的上传按钮，专门用于报告目录）---
@@ -298,62 +323,109 @@ export default function DocumentReportSystem() {
     if (files.length === 0) return
 
     // --- 准备工作 ---
-    // 1. 确定资料库父节点ID (来自 "选择资料" 面板)
-    const libraryParentId = isFolderNode(treeNodes, selectedNode) ? selectedNode : null
-    
-    // 2. 确定报告目录父节点ID (来自 "当前报告目录" 面板)
-    const reportParentId = isReportFolderNode(reportStructure, selectedReportNode) ? selectedReportNode : null
+    // 1. "我的上传" 目录总是根目录
+    const parentId = null
+    // const reportParentId = ... // (不再需要)
 
-    // 3. 异步读取所有文件并上传到后端
+    // 2. 异步读取所有文件并上传到后端
     const readFiles: { file: File; content: string | ArrayBuffer; fileType: string; uploadResult?: { docId: string; status: string } }[] = []
     for (const file of files) {
       const { content, fileType } = await readFileContent(file)
-      // 调用API上传文件到后端
-      const uploadResult = await handleFileApiUpload(file, libraryParentId, fileType);
+      const uploadResult = await handleFileApiUpload(file, parentId, fileType);
       readFiles.push({ file, content, fileType, uploadResult })
     }
 
-    // --- 执行逻辑 1: 添加到资料库 (中间面板) ---
+    // --- 执行逻辑: 只添加到 "我的上传" ---
     const newDocNodes: DocumentNode[] = readFiles.map(({ file, content, fileType, uploadResult }) => ({
       id: uploadResult?.docId || "doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
       name: file.name,
       type: "file",
-      parentId: libraryParentId,
+      parentId: parentId, // <-- 确保为 null
       uploadDate: new Date().toISOString(),
       description: `上传于 ${new Date().toLocaleDateString()}`,
       content: content,
       fileSize: file.size,
       fileType: fileType,
-      status: uploadResult?.status || "LOCAL", // 添加状态字段
+      status: uploadResult?.status || "LOCAL",
     }))
     
+    // --- ↓↓↓ 这是核心修改 ↓↓↓ ---
+    // 将新文件添加到 "我的上传" state
+    setMyUploadsNodes(prevNodes => [...prevNodes, ...newDocNodes])
+    // --- ↑↑↑ 核心修改结束 ↑↑↑ ---
+
+    // --- 移除以下逻辑 ---
+    // (不再添加到资料库 treeNodes)
+    /*
     let newTreeNodes = [...treeNodes]
     for (const newNode of newDocNodes) {
-      // 使用我们修复过的不可变函数
       newTreeNodes = addDocumentNodeToTree(newTreeNodes, newNode, libraryParentId)
     }
-    setTreeNodes(newTreeNodes) // 更新资料库
+    setTreeNodes(newTreeNodes)
+    if (libraryParentId) { ... }
+    */
 
-    if (libraryParentId) {
-      setExpandedNodes(new Set([...expandedNodes, libraryParentId]))
-    }
-
-    // --- 执行逻辑 2: 添加到报告结构 (左侧面板) ---
+    // (不再自动添加到报告)
+    /*
     const newDocIds = new Set(newDocNodes.map(node => node.id))
-    
+    addDocumentsToReport(...)
+    if (reportParentId) { ... }
+    */
+  }
+
+  // --- ↓↓↓ 3. 为 "我的上传" 添加重命名和删除 Handler ↓↓↓ ---
+  const handleUpdateMyUploadsNodeName = (nodeId: string, newName: string) => {
+    if (!newName.trim()) return
+    setMyUploadsNodes(
+      myUploadsNodes.map((node) =>
+        node.id === nodeId ? { ...node, name: newName.trim() } : node
+      )
+    )
+  }
+
+  const handleDeleteMyUploadsNode = (nodeId: string) => {
+    if (!window.confirm("确定要从上传列表中移除此文件吗？")) return
+    setMyUploadsNodes(
+      myUploadsNodes.filter((node) => node.id !== nodeId)
+    )
+  }
+  // --- ↑↑↑ 添加结束 ↑↑↑ ---
+
+  // 添加文档到报告的处理函数
+  const handleAddDocumentToReport = (
+    documentIds: Set<string>,
+    sourceNodes: DocumentNode[],
+    targetParentId: string | null,
+    reportStructure: ReportNode[],
+    setReportStructure: (structure: ReportNode[]) => void,
+    selectedDocuments: Set<string>,
+    setSelectedDocuments: (docs: Set<string>) => void
+  ) => {
     addDocumentsToReport(
-      newDocIds,
-      newTreeNodes, // 传入更新后的 treeNodes！
-      reportParentId, // 传入左下角选中的父节点ID
+      documentIds,
+      sourceNodes,
+      targetParentId,
       reportStructure,
       setReportStructure,
-      setSelectedDocuments // 清空选择
+      setSelectedDocuments
     )
+  }
 
-    // 展开左下角的目标目录
-    if (reportParentId) {
-      setExpandedReportNodes(new Set([...expandedReportNodes, reportParentId]))
-    }
+  // 从"我的上传"添加单个文档到报告的处理函数
+  const handleAddSingleDocumentToReport = (docId: string) => {
+    // 创建只包含单个文档ID的Set
+    const documentIds = new Set([docId])
+    
+    // 调用原有的handleAddDocumentToReport函数
+    handleAddDocumentToReport(
+      documentIds,
+      myUploadsNodes,
+      selectedReportNode,
+      reportStructure,
+      setReportStructure,
+      selectedDocuments,
+      setSelectedDocuments
+    )
   }
 
   // -----------------------------------------------------------------
@@ -394,7 +466,7 @@ export default function DocumentReportSystem() {
         </div>
       </div>
 
-      {/* --- 这是你丢失的 Container --- */}
+      {/* 这是你丢失的 Container --- */}
       <div className="container mx-auto px-4 py-6">
         {activeTab === "library" ? (
           // -----------------------------------------------------------------
@@ -492,6 +564,14 @@ export default function DocumentReportSystem() {
             onAttachmentFileUpload={handleReportInfoUpload}
             onDocumentSelectionUpload={handleDocumentSelectionUpload} // <--- 新增
             onReportInfoUpload={handleReportInfoUpload} // <--- 新增
+            
+            // --- ↓↓↓ 4. 传入新的 State 和 Handlers ↓↓↓ ---
+            myUploadsNodes={myUploadsNodes}
+            setMyUploadsNodes={setMyUploadsNodes}
+            onUpdateMyUploadsNodeName={handleUpdateMyUploadsNodeName}
+            onDeleteMyUploadsNode={handleDeleteMyUploadsNode}
+            onAddDocumentToReport={handleAddSingleDocumentToReport} // <-- 传入新的函数
+            // --- ↑↑↑ 传入结束 ↑↑↑ ---
           />
         )}
       </div>

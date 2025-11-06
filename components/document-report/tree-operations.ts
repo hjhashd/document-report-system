@@ -202,8 +202,10 @@ export const addDocumentToReport = (
   }
 
   const newStructure = [...reportStructure]
-  addToNode(newStructure)
-  setReportStructure(newStructure)
+  if (addToNode(newStructure)) {
+    setReportStructure(newStructure)
+    toast.success(`成功添加资料 "${doc.name}" 到报告！`)
+  }
 }
 
 export const addDocumentsToReport = (
@@ -353,15 +355,16 @@ export const addFolderDocumentsToReport = (
   }
 
   let addedCount = 0
+  const skippedDocs: string[] = []
 
   // 2. 遍历文件夹内的所有文档
   folderDocuments.forEach((doc) => {
-    // 3. 检查是否已存在
+    // 3. 检查是否已存在 - 只检查当前目标目录，不检查子目录
     const checkExists = (children: ReportNode[]): boolean => {
-      return children.some((child) => child.sourceId === doc.id || (child.children && checkExists(child.children)))
+      return children.some((child) => child.sourceId === doc.id)
     }
     if (checkExists(targetChildrenList)) {
-      console.warn(`资料 ${doc.name} 已存在于目标目录中，跳过。`)
+      skippedDocs.push(doc.name)
       return
     }
 
@@ -384,9 +387,13 @@ export const addFolderDocumentsToReport = (
   setReportStructure(newStructure)
   
   if (addedCount > 0) {
-    toast.success(`成功从文件夹 "${folder.name}" 添加 ${addedCount} 个资料到报告！`)
+    let message = `成功从文件夹 "${folder.name}" 添加 ${addedCount} 个资料到报告！`
+    if (skippedDocs.length > 0) {
+      message += ` 已跳过 ${skippedDocs.length} 个已存在的文档。`
+    }
+    toast.success(message)
   } else {
-    toast.info("没有新的资料被添加（可能已存在）。")
+    toast.info(`没有新的资料被添加。文件夹 "${folder.name}" 中的所有文档可能已存在于目标目录中。`)
   }
 }
 
