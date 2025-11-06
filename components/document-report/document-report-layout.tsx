@@ -237,25 +237,85 @@ export function DocumentReportLayout({
   }
 
   const handleAddDocumentsToReport = () => {
-    addDocumentsToReport(
-      selectedDocuments,
-      treeNodes,
-      selectedReportNode,
-      reportStructure,
-      setReportStructure,
-      setSelectedDocuments
+    // 判断当前是否有来自"我的上传"的文档被选中
+    const hasMyUploadsSelected = Array.from(selectedDocuments).some(docId => 
+      myUploadsNodes.some(node => node.id === docId)
     )
+    
+    // 如果有来自"我的上传"的文档被选中，使用专门的函数处理
+    if (hasMyUploadsSelected) {
+      // 分别处理资料库和我的上传中的文档
+      const libraryDocs = Array.from(selectedDocuments).filter(docId => 
+        treeNodes.some(node => node.id === docId)
+      )
+      const myUploadDocs = Array.from(selectedDocuments).filter(docId => 
+        myUploadsNodes.some(node => node.id === docId)
+      )
+      
+      // 先添加资料库中的文档
+      if (libraryDocs.length > 0) {
+        addDocumentsToReport(
+          new Set(libraryDocs),
+          treeNodes,
+          myUploadsNodes,
+          selectedReportNode,
+          reportStructure,
+          setReportStructure,
+          setSelectedDocuments
+        )
+      }
+      
+      // 再添加我的上传中的文档
+      if (myUploadDocs.length > 0) {
+        addDocumentsToReport(
+          new Set(myUploadDocs),
+          treeNodes,
+          myUploadsNodes,
+          selectedReportNode,
+          reportStructure,
+          setReportStructure,
+          setSelectedDocuments
+        )
+      }
+    } else {
+      // 如果只有资料库中的文档被选中，使用原来的逻辑
+      addDocumentsToReport(
+        selectedDocuments,
+        treeNodes,
+        myUploadsNodes,
+        selectedReportNode,
+        reportStructure,
+        setReportStructure,
+        setSelectedDocuments
+      )
+    }
   }
 
   // 处理批量添加文件夹内的所有文档到报告
   const handleAddFolderDocumentsToReport = (folderId: string) => {
-    addFolderDocumentsToReport(
-      folderId,
-      treeNodes,
-      selectedReportNode,
-      reportStructure,
-      setReportStructure
-    )
+    // 判断文件夹是否来自"我的上传"
+    const isMyUploadsFolder = myUploadsNodes.some(node => node.id === folderId)
+    
+    if (isMyUploadsFolder) {
+      // 如果是来自"我的上传"的文件夹，需要修改 addFolderDocumentsToReport 函数以支持 myUploadsNodes
+      // 这里暂时使用原来的逻辑，但需要修改 addFolderDocumentsToReport 函数
+      addFolderDocumentsToReport(
+        folderId,
+        [...treeNodes, ...myUploadsNodes], // 合并两个列表
+        selectedReportNode,
+        reportStructure,
+        setReportStructure
+      )
+    } else {
+      // 如果是来自资料库的文件夹，使用原来的逻辑
+      addFolderDocumentsToReport(
+        folderId,
+        treeNodes,
+        selectedReportNode,
+        reportStructure,
+        setReportStructure
+      )
+    }
   }
 
   const handleDeleteReportNode = (nodeId: string) => {
@@ -443,8 +503,6 @@ export function DocumentReportLayout({
 
   const handleDeleteLibraryDirectory = (nodeId: string) => {
     // ... (你的逻辑) ...
-    if (!window.confirm("确定要删除此目录吗？")) return
-    
     const removeDir = (nodes: ReportNode[], id: string): ReportNode[] => {
       return nodes.filter(node => {
         if (node.id === id) return false

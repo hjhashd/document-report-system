@@ -1,7 +1,9 @@
 "use client"
 
 import { FileText, Plus, Edit2, Trash2 } from "lucide-react"
+import { useState } from "react"
 import { DocumentNode } from "./types"
+import { ConfirmDialog } from "./confirm-dialog"
 
 interface MyUploadsTreeProps {
   nodes: DocumentNode[]
@@ -12,6 +14,9 @@ interface MyUploadsTreeProps {
   onSetEditingNodeName: (name: string) => void
   onUpdateMyUploadsNodeName: (nodeId: string, newName: string) => void
   onDeleteMyUploadsNode: (nodeId: string) => void
+  // 添加勾选功能相关属性
+  selectedDocuments: Set<string>
+  onToggleDocumentSelection: (docId: string) => void
 }
 
 export function MyUploadsTree({
@@ -23,7 +28,13 @@ export function MyUploadsTree({
   onSetEditingNodeName,
   onUpdateMyUploadsNodeName,
   onDeleteMyUploadsNode,
+  // 添加勾选功能相关属性
+  selectedDocuments,
+  onToggleDocumentSelection,
 }: MyUploadsTreeProps) {
+  // 添加状态管理确认对话框
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [nodeToDelete, setNodeToDelete] = useState<string | null>(null)
 
   // 过滤掉文件夹（如果未来可能添加的话），只显示文件
   const fileNodes = nodes.filter(node => node.type === 'file');
@@ -33,6 +44,19 @@ export function MyUploadsTree({
       onUpdateMyUploadsNodeName(nodeId, editingNodeName.trim())
     }
     onSetEditingNodeId(null)
+  }
+
+  const handleDeleteClick = (nodeId: string, nodeName: string) => {
+    setNodeToDelete(nodeId)
+    setDeleteConfirmOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (nodeToDelete) {
+      onDeleteMyUploadsNode(nodeToDelete)
+      setNodeToDelete(null)
+    }
+    setDeleteConfirmOpen(false)
   }
 
   return (
@@ -52,6 +76,13 @@ export function MyUploadsTree({
                 key={node.id}
                 className="flex items-center py-1.5 px-2 hover:bg-gray-100 rounded"
               >
+                {/* 添加复选框 */}
+                <input
+                  type="checkbox"
+                  checked={selectedDocuments.has(node.id)}
+                  onChange={() => onToggleDocumentSelection(node.id)}
+                  className="mr-2"
+                />
                 <FileText size={16} className="mr-2 text-gray-500 shrink-0" />
                 
                 {isEditing ? (
@@ -99,7 +130,7 @@ export function MyUploadsTree({
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      onDeleteMyUploadsNode(node.id)
+                      handleDeleteClick(node.id, node.name)
                     }}
                     className="p-0.5 text-gray-400 hover:text-red-600 rounded"
                     title="删除"
@@ -112,6 +143,17 @@ export function MyUploadsTree({
           })
         )}
       </div>
+      
+      {/* 删除确认对话框 */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="确认删除"
+        description={`确定要删除文件"${nodes.find(n => n.id === nodeToDelete)?.name}"吗？此操作不可撤销。`}
+        confirmText="删除"
+        cancelText="取消"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

@@ -186,7 +186,7 @@ export function DocumentSelection({
             onDocumentSearchChange={onMyUploadsSearchChange}
             selectedDocuments={selectedDocuments}
             onToggleDocumentSelection={onToggleDocumentSelection}
-            onAddDocumentToReport={onAddDocumentToReport}
+            onAddDocumentToReport={onAddDocumentToReportFromMyUploads} // 使用我的上传添加函数
             onAddFolderDocumentsToReport={onAddFolderDocumentsToReport}
             selectedReportNode={selectedReportNode}
             editingNodeId={editingNodeId}

@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { ReportNode } from "./types"
 import { handleDragOver, handleDragLeave, handleDrop } from "./drag-drop-operations"
+import { ConfirmDialog } from "./confirm-dialog"
 
 interface ReportTreeProps {
   reportStructure: ReportNode[]
@@ -57,6 +58,10 @@ export function ReportTree({
   const [showNewFolderModal, setShowNewFolderModal] = useState(false)
   const [newFolderName, setNewFolderName] = useState("")
   const [newFolderParent, setNewFolderParent] = useState<string | null>(null)
+  // 添加状态管理确认对话框
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [nodeToDelete, setNodeToDelete] = useState<string | null>(null)
+  const [nodeToDeleteName, setNodeToDeleteName] = useState<string>('')
 
   const handleCreateFolder = () => {
     if (!newFolderName.trim()) return
@@ -77,6 +82,21 @@ export function ReportTree({
     e.preventDefault()
     setNewFolderParent(null)
     setShowNewFolderModal(true)
+  }
+
+  const handleDeleteClick = (nodeId: string, nodeName: string) => {
+    setNodeToDelete(nodeId)
+    setNodeToDeleteName(nodeName)
+    setDeleteConfirmOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (nodeToDelete) {
+      onDeleteReportNode(nodeToDelete)
+      setNodeToDelete(null)
+      setNodeToDeleteName('')
+    }
+    setDeleteConfirmOpen(false)
   }
 
   const renderReportNode = (node: ReportNode, level = 0) => {
@@ -186,7 +206,34 @@ export function ReportTree({
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDeleteReportNode(node.id)
+                  handleDeleteClick(node.id, node.name)
+                }}
+                className="p-0.5 text-gray-400 hover:text-red-600 rounded"
+                title="删除"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          )}
+          
+          {node.type === "file" && (
+            <div className="flex items-center gap-1 ml-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSetEditingNodeId(node.id)
+                  onSetEditingNodeName(node.name)
+                }}
+                className="p-0.5 text-gray-400 hover:text-blue-600 rounded"
+                title="重命名"
+              >
+                <Edit2 size={12} />
+              </button>
+              
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDeleteClick(node.id, node.name)
                 }}
                 className="p-0.5 text-gray-400 hover:text-red-600 rounded"
                 title="删除"
@@ -280,6 +327,17 @@ export function ReportTree({
           </div>
         </div>
       )}
+      
+      {/* 删除确认对话框 */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="确认删除"
+        description={`确定要删除${nodeToDelete ? (reportStructure.find(n => n.id === nodeToDelete)?.type === "folder" ? "文件夹" : "文档") : "项目"}"${nodeToDeleteName}"吗？此操作不可撤销。`}
+        confirmText="删除"
+        cancelText="取消"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

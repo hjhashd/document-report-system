@@ -89,7 +89,6 @@ export function ReportLibrary({
   }
 
   const handleDeleteLibraryDirectory = (nodeId: string) => {
-    if (!window.confirm("确定要删除此目录吗？")) return
     onDeleteLibraryDirectory(nodeId)
   }
 

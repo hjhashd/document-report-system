@@ -210,7 +210,8 @@ export const addDocumentToReport = (
 
 export const addDocumentsToReport = (
   selectedDocuments: Set<string>,
-  treeNodes: DocumentNode[], // 这是最新的 "资料库" 状态
+  treeNodes: DocumentNode[], // 资料库
+  myUploadsNodes: DocumentNode[], // <-- 1. 添加这个新参数
   targetParentId: string | null, // 这是 "当前报告目录" 中选中的文件夹ID
   reportStructure: ReportNode[], // 这是当前的 "报告目录" 状态
   setReportStructure: (structure: ReportNode[]) => void,
@@ -221,7 +222,14 @@ export const addDocumentsToReport = (
     return
   }
 
-  // 1. 查找目标父节点
+  // --- ↓↓↓ 2. 核心修复：合并两个列表 ↓↓↓ ---
+  // 合并资料库和我的上传，作为所有可用文件的来源
+  const allAvailableDocuments = [...treeNodes, ...myUploadsNodes];
+  const getDocFromAll = (docId: string) => 
+    allAvailableDocuments.find(n => n.id === docId);
+  // --- ↑↑↑ 修复结束 ↑↑↑ ---
+
+  // 3. 查找目标位置 (这部分逻辑是正确的)
   let targetChildrenList: ReportNode[]
   let parentNode: ReportNode | null = null
   const newStructure = [...reportStructure]
@@ -236,45 +244,48 @@ export const addDocumentsToReport = (
     parentNode.children = parentNode.children || []
     targetChildrenList = parentNode.children
   } else {
-    // 如果没有选中父节点，则添加到根目录
+    // 如果 targetParentId 为 null, 目标就是根目录
     targetChildrenList = newStructure
   }
 
   let addedCount = 0
 
-  // 2. 遍历选中的文件
   selectedDocuments.forEach((docId) => {
-    const doc = getNode(treeNodes, docId) // 从最新的资料库中获取文件信息
+    // 4. 从合并后的列表中查找
+    const doc = getDocFromAll(docId);
+    
     if (!doc || doc.type !== "file") {
-      console.warn(`未在资料库中找到 ID: ${docId}，跳过添加。`)
+      console.warn(`未在任何资料库中找到 ID: ${docId}，跳过添加。`)
       return
     }
 
-    // 3. 检查是否已存在
+    // 5. 检查是否已存在 (在正确的目标列表中检查)
     const checkExists = (children: ReportNode[]): boolean => {
       return children.some((child) => child.sourceId === docId || (child.children && checkExists(child.children)))
     }
+    
+    // (这里 parentNode 可能为 null，所以我们直接用 targetChildrenList 检查)
     if (checkExists(targetChildrenList)) {
       console.warn(`资料 ${doc.name} 已存在于目标目录中，跳过。`)
       return
     }
 
-    // 4. 创建新的报告节点
+    // 6. 创建新节点
     const newDocRef: ReportNode = {
       id: "report-doc-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
       name: doc.name,
       type: "file",
-      sourceId: docId,
+      sourceId: doc.id,
       description: doc.description,
       content: doc.content,
     }
 
-    // 5. 添加到目标列表
+    // 7. 添加
     targetChildrenList.push(newDocRef)
     addedCount++
   })
 
-  // 6. 更新状态
+  // 8. 更新状态
   setReportStructure(newStructure)
   setSelectedDocuments(new Set()) // 清空选择
   
@@ -404,8 +415,6 @@ export const deleteReportNode = (
   selectedReportNode: string | null,
   setSelectedReportNode: (nodeId: string | null) => void
 ) => {
-  if (!window.confirm("确定要删除此项吗？")) return
-
   const removeNode = (nodes: ReportNode[]): boolean => {
     for (let i = 0; i < nodes.length; i++) {
       if (nodes[i].id === nodeId) {

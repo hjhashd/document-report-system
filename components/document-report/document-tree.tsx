@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   FolderOpen,
   FileText,
@@ -22,6 +22,7 @@ import {
   HelpCircle,
 } from "lucide-react"
 import { toast } from "sonner"
+import { ConfirmDialog } from "./confirm-dialog"
 
 interface TreeNode {
   id: string
@@ -83,6 +84,11 @@ export function DocumentTree({
   onDeleteMyUploadsNode,
   onAddDocumentToReportFromMyUploads,
 }: DocumentTreeProps) {
+  // 添加状态管理确认对话框
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [nodeToDelete, setNodeToDelete] = useState<string | null>(null)
+  const [nodeToDeleteName, setNodeToDeleteName] = useState<string>('')
+
   const getNode = (id: string) => {
     // 首先在treeNodes中查找
     let node = treeNodes.find((n) => n.id === id)
@@ -92,25 +98,75 @@ export function DocumentTree({
     }
     return node
   }
-  
-  const filterDocuments = (nodes: TreeNode[]) => {
-    if (!documentSearchQuery) {
-      return nodes
-    }
-    return nodes.filter((node) => {
-      const matchesQuery =
-        node.name.toLowerCase().includes(documentSearchQuery.toLowerCase()) ||
-        (node.description && node.description.toLowerCase().includes(documentSearchQuery.toLowerCase())) ||
-        (node.content && node.content.toLowerCase().includes(documentSearchQuery.toLowerCase()))
-      return matchesQuery
-    })
+
+  const handleDeleteClick = (nodeId: string, nodeName: string) => {
+    setNodeToDelete(nodeId)
+    setNodeToDeleteName(nodeName)
+    setDeleteConfirmOpen(true)
   }
 
+  const handleConfirmDelete = () => {
+    if (nodeToDelete && onDeleteMyUploadsNode) {
+      onDeleteMyUploadsNode(nodeToDelete)
+      setNodeToDelete(null)
+      setNodeToDeleteName('')
+    }
+    setDeleteConfirmOpen(false)
+  }
+
+  // --- ↓↓↓ 搜索逻辑修复 ↓↓↓ --- 
+  const matchingNodeIds = useMemo(() => {
+    if (!documentSearchQuery) {
+      return null; // 没有搜索词，不过滤
+    }
+
+    const lowerQuery = documentSearchQuery.toLowerCase();
+    const matching = new Set<string>();
+    
+    // 合并所有节点进行搜索
+    const allNodes = [...treeNodes];
+    if (myUploadsNodes) {
+      allNodes.push(...myUploadsNodes);
+    }
+
+    allNodes.forEach(node => {
+      // 检查节点自身是否匹配
+      const nodeMatches = 
+        node.name.toLowerCase().includes(lowerQuery) || 
+        (node.description && node.description.toLowerCase().includes(lowerQuery)) || 
+        (node.content && typeof node.content === 'string' && node.content.toLowerCase().includes(lowerQuery));
+
+      if (nodeMatches) {
+        // 如果匹配，将它自己和所有父节点都加入集合
+        let currentId: string | null | undefined = node.id;
+        while (currentId) {
+          if (matching.has(currentId)) break; // 避免重复计算
+          matching.add(currentId);
+          const parent = getNode(currentId);
+          currentId = parent?.parentId;
+        }
+      }
+    });
+    return matching;
+  }, [documentSearchQuery, treeNodes, myUploadsNodes]); // 依赖搜索词和节点数据
+  // --- ↑↑↑ 搜索逻辑修复结束 ↑↑↑ ---
+
   const renderTreeNode = (nodeId: string, level = 0, isFromMyUploads = false) => {
+    // --- ↓↓↓ 搜索过滤检查 ↓↓↓ ---
+    // 如果正在搜索 (matchingNodeIds 不为 null)，并且当前节点不在匹配集合中，则不渲染
+    if (matchingNodeIds && !matchingNodeIds.has(nodeId)) {
+      return null;
+    }
+    // --- ↑↑↑ 检查结束 ↑↑↑ ---
+    
     const node = getNode(nodeId)
     if (!node) return null
 
-    const isExpanded = expandedNodes.has(nodeId)
+    // --- ↓↓↓ 自动展开搜索结果 ↓↓↓ ---
+    // 如果在搜索，则强制展开；否则按原逻辑
+    const isExpanded = matchingNodeIds ? true : expandedNodes.has(nodeId);
+    // --- ↑↑↑ 自动展开结束 ↑↑↑ ---
+    
     const isSelected = selectedNode === nodeId
     const isEditing = editingNodeId === nodeId
     const hasChildren = node.children && node.children.length > 0
@@ -231,7 +287,7 @@ export function DocumentTree({
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    onDeleteMyUploadsNode(nodeId)
+                    handleDeleteClick(nodeId, node.name)
                   }}
                   className="p-0.5 text-gray-400 hover:text-red-600 rounded"
                   title="删除"
@@ -274,23 +330,37 @@ export function DocumentTree({
   const rootNodes = isMyUploadsView 
     ? myUploadsNodes.filter((node) => !node.parentId)
     : treeNodes.filter((node) => !node.parentId)
-  const filteredRootNodes = filterDocuments(rootNodes)
+
+  // --- ↓↓↓ 修改渲染逻辑 ↓↓↓ ---
+  const renderedNodes = rootNodes
+    .map((node) => renderTreeNode(node.id, 0, isMyUploadsView))
+    .filter(Boolean); // 过滤掉被搜索过滤掉的节点
+  // --- ↑↑↑ 修改渲染逻辑结束 ↑↑↑ ---
 
   return (
     <div className="flex flex-col h-full">
       {/* 搜索框已移除，只保留DocumentSelection中的搜索功能 */}
       
       <div className="flex-1 overflow-auto">
-        {filteredRootNodes.length === 0 ? (
+        {renderedNodes.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             {documentSearchQuery ? "未找到匹配的文档" : (isMyUploadsView ? "暂无上传文档" : "暂无文档")}
           </div>
         ) : (
-          filteredRootNodes.map((node) => renderTreeNode(node.id, 0, isMyUploadsView))
+          renderedNodes
         )}
       </div>
       
-
+      {/* 删除确认对话框 */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="确认删除"
+        description={`确定要删除文件"${nodeToDeleteName}"吗？此操作不可撤销。`}
+        confirmText="删除"
+        cancelText="取消"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

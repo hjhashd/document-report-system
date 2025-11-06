@@ -384,7 +384,6 @@ export default function DocumentReportSystem() {
   }
 
   const handleDeleteMyUploadsNode = (nodeId: string) => {
-    if (!window.confirm("确定要从上传列表中移除此文件吗？")) return
     setMyUploadsNodes(
       myUploadsNodes.filter((node) => node.id !== nodeId)
     )
@@ -395,18 +394,21 @@ export default function DocumentReportSystem() {
   const handleAddDocumentToReport = (
     documentIds: Set<string>,
     sourceNodes: DocumentNode[],
+    myUploadsNodes: DocumentNode[], // <-- 添加 myUploadsNodes 参数
     targetParentId: string | null,
     reportStructure: ReportNode[],
     setReportStructure: (structure: ReportNode[]) => void,
     selectedDocuments: Set<string>,
     setSelectedDocuments: (docs: Set<string>) => void
   ) => {
-    addDocumentsToReport(
+   addDocumentsToReport(
       documentIds,
       sourceNodes,
+      myUploadsNodes, // <-- 添加 myUploadsNodes 参数
       targetParentId,
       reportStructure,
       setReportStructure,
+      selectedDocuments,
       setSelectedDocuments
     )
   }
@@ -420,6 +422,7 @@ export default function DocumentReportSystem() {
     handleAddDocumentToReport(
       documentIds,
       myUploadsNodes,
+      myUploadsNodes, // <-- 添加 myUploadsNodes 参数
       selectedReportNode,
       reportStructure,
       setReportStructure,
