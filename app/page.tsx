@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { FolderOpen, FileText, ChevronRight, File, Folder, Eye } from "lucide-react"
 
 // 导入你的新布局组件和类型
@@ -19,79 +19,7 @@ import { formatFileSize } from "@/components/document-report/report-operations"
 // -----------------------------------------------------------------
 // 1. 从你之前的文件中恢复初始数据
 // -----------------------------------------------------------------
-const INITIAL_TREE_NODES: DocumentNode[] = [
-  {
-    id: "1",
-    name: "技术文档",
-    type: "folder",
-    parentId: null,
-    children: ["3", "4", "6"],
-  },
-  {
-    id: "2",
-    name: "市场分析",
-    type: "folder",
-    parentId: null,
-    children: ["5"],
-  },
-  {
-    id: "3",
-    name: "产品技术规格.pdf",
-    type: "file",
-    parentId: "1",
-    uploadDate: "2025-10-20",
-    description: "产品技术详细说明",
-    content: "# 产品技术规格文档...",
-    fileSize: 2048,
-  },
-  {
-    id: "4",
-    name: "API接口文档.docx",
-    type: "file",
-    parentId: "1",
-    uploadDate: "2025-10-21",
-    description: "RESTful API接口说明",
-    content: "# API接口文档...",
-    fileSize: 3072,
-  },
-  {
-    id: "5",
-    name: "市场调研报告.docx",
-    type: "file",
-    parentId: "2",
-    uploadDate: "2025-10-22",
-    description: "2025年市场趋势分析",
-    content: "# 2025年市场调研报告...",
-    fileSize: 4096,
-  },
-  {
-    id: "6",
-    name: "开发规范",
-    type: "folder",
-    parentId: "1",
-    children: ["7", "8"],
-  },
-  {
-    id: "7",
-    name: "代码规范.md",
-    type: "file",
-    parentId: "6",
-    uploadDate: "2025-10-18",
-    description: "团队代码编写规范",
-    content: "# 代码规范...",
-    fileSize: 1024,
-  },
-  {
-    id: "8",
-    name: "Git提交规范.md",
-    type: "file",
-    parentId: "6",
-    uploadDate: "2025-10-19",
-    description: "Git commit message规范",
-    content: "# Git提交规范...",
-    fileSize: 1536,
-  },
-]
+const INITIAL_TREE_NODES: DocumentNode[] = []
 
 const INITIAL_REPORT_LIBRARY: ReportNode[] = [
   {
@@ -128,7 +56,7 @@ export default function DocumentReportSystem() {
 
   // --- 你的所有状态（保持不变） ---
   const [reports, setReports] = useState<any[]>([])
-  const [treeNodes, setTreeNodes] = useState<DocumentNode[]>(INITIAL_TREE_NODES)
+  const [treeNodes, setTreeNodes] = useState<DocumentNode[]>([]) // <-- 默认值改为空数组
   const [reportLibrary, setReportLibrary] = useState<ReportNode[]>(INITIAL_REPORT_LIBRARY)
   const [currentView, setCurrentView] = useState("reportCreation") // 默认进入创建视图
   const [currentReportId, setCurrentReportId] = useState<string | null>(null)
@@ -146,6 +74,25 @@ export default function DocumentReportSystem() {
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null)
   const [editingNodeName, setEditingNodeName] = useState("")
   const [draggedNode, setDraggedNode] = useState<ReportNode | null>(null)
+
+  // --- ↓↓↓ 添加此 useEffect ↓↓↓ ---
+  useEffect(() => {
+    // 当用户点击 "资料库" 标签页时，且数据尚未加载时
+    if (activeTab === "library" && treeNodes.length === 0) {
+      console.log("正在获取资料库结构...");
+      fetch('/api/library') // <--- 请求你在任务1创建的 API
+        .then(res => res.json())
+        .then((data: DocumentNode[]) => {
+          setTreeNodes(data);
+
+          // 自动展开所有第一层级的文件夹
+          const rootFolders = data.filter(n => n.type === 'folder' && !n.parentId).map(n => n.id);
+          setExpandedNodes(new Set(rootFolders));
+        })
+        .catch(err => console.error("获取资料库失败:", err));
+    }
+  }, [activeTab, treeNodes.length, setExpandedNodes]); // 依赖 activeTab
+  // --- ↑↑↑ 添加结束 ↑↑↑ ---
 
   // -----------------------------------------------------------------
   // 3. 恢复资料库视图需要的辅助函数

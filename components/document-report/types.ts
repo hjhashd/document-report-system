@@ -11,6 +11,8 @@ export interface DocumentNode {
   content?: string | ArrayBuffer
   fileSize?: number
   fileType?: string
+  url?: string
+  status?: string
 }
 
 export interface ReportNode {
