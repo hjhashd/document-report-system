@@ -7,7 +7,7 @@ import { DocumentNode } from '@/components/document-report/types' // 导入你�
 // 资料库在 public 目录下的根路径
 const LIBRARY_ROOT_PATH = 'public/processed_library'
 // 对应的 URL 基础路径
-const LIBRARY_BASE_URL = '/processed_library'
+const LIBRARY_BASE_URL = '/files/processed_library'
 
 // 递归函数，用于读取目录结构
 async function readDirectoryStructure(

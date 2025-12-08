@@ -9,6 +9,7 @@ import {
   Download,
   ArrowLeft,
   RefreshCw,
+  Eye, // 添加 Eye 图标
 } from "lucide-react"
 import { UploadedFile } from "./types"
 import { formatFileSize } from "./report-operations"
@@ -20,12 +21,8 @@ interface ReportInfoProps {
   styleDocFiles: UploadedFile[]
   biddingFiles: UploadedFile[]
   
-  // --- ↓↓↓ 修改 Props ↓↓↓ --- 
   onReportInfoUpload: (e: React.ChangeEvent<HTMLInputElement>, fileType: "style" | "bidding") => void
-  // onStyleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <-- 删除 
-  // onBiddingFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void // <-- 删除 
-  // --- ↑↑↑ 修改结束 ↑↑↑ ---
-  
+
   onRemoveStyleFile: (fileId: string) => void
   onRemoveBiddingFile: (fileId: string) => void
   onGenerateReport: () => void
@@ -197,8 +194,8 @@ export function ReportInfo({
               onClick={() => window.open(reportUrl, '_blank')}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
             >
-              <Download size={16} />
-              下载报告
+              <Eye size={16} />
+              查看报告
             </button>
           ) : isGenerating ? (
             // 显示加载状态
