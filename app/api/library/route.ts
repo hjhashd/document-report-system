@@ -7,7 +7,7 @@ import { DocumentNode } from '@/components/document-report/types' // 导入你�
 // 资料库在 public 目录下的根路径
 const LIBRARY_ROOT_PATH = 'public/processed_library'
 // 对应的 URL 基础路径
-const LIBRARY_BASE_URL = '/files/processed_library'
+const LIBRARY_BASE_URL = '/processed_library'
 
 // 递归函数，用于读取目录结构
 async function readDirectoryStructure(
@@ -24,7 +24,7 @@ async function readDirectoryStructure(
         for (const entry of entries) {
             const entryPath = path.join(dirPath, entry.name);
             const entryId = `lib-${Buffer.from(entryPath).toString('hex')}`; // 基于路径生成唯一ID
-            const entryUrl = `${baseUrl}/${entry.name}`;
+            const entryUrl = `${baseUrl}/${encodeURIComponent(entry.name)}`;
 
             if (entry.isDirectory()) {
                 // 这是个文件夹
@@ -81,7 +81,7 @@ async function readDirectoryStructure(
     for (const entry of finalNodes) {
         const entryPath = path.join(dirPath, entry.name);
         const entryId = `lib-${Buffer.from(entryPath).toString('hex')}`;
-        const entryUrl = `${baseUrl}/${entry.name}`;
+        const entryUrl = `${baseUrl}/${encodeURIComponent(entry.name)}`;
 
         if (entry.isDirectory()) {
             const folderNode: DocumentNode = {
@@ -99,7 +99,7 @@ async function readDirectoryStructure(
                 if (childEntry.isFile() && (childEntry.name.endsWith('.docx') || childEntry.name.endsWith('.pdf'))) {
                     const childPath = path.join(entryPath, childEntry.name);
                     const childId = `lib-${Buffer.from(childPath).toString('hex')}`;
-                    const childUrl = `${entryUrl}/${childEntry.name}`;
+                    const childUrl = `${entryUrl}/${encodeURIComponent(childEntry.name)}`;
                     const stats = await fs.stat(childPath);
 
                     let cleanName = childEntry.name.replace(/\.docx$|\.pdf$/i, "");

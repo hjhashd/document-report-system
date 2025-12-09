@@ -1,10 +1,11 @@
 "use client"
 
-import { FileText, Plus, Edit2, Trash2 } from "lucide-react"
+import { FileText, Plus, Edit2, Trash2, Download } from "lucide-react"
 import { useState } from "react"
 import { DocumentNode } from "./types"
 import { ConfirmDialog } from "./confirm-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import { formatFileSize } from "@/lib/utils"
 
 interface MyUploadsTreeProps {
   nodes: DocumentNode[]
@@ -134,47 +135,64 @@ export function MyUploadsTree({
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  <span className="flex-1 text-sm truncate" title={node.name}>
-                    {node.name}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm truncate" title={node.name}>{node.name}</div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {node.uploadDate ? new Date(node.uploadDate).toLocaleString() : ''}
+                      {typeof node.fileSize === 'number' ? ` · ${formatFileSize(node.fileSize)}` : ''}
+                    </div>
+                  </div>
                 )}
                 
                 {/* --- ↓↓↓ 6. 条件渲染按钮 ↓↓↓ --- */}
-                {viewMode === 'report' && (
-                  <div className="flex items-center gap-1 ml-2 shrink-0">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onAddDocumentToReport(node.id)
-                      }}
-                      className="p-0.5 text-gray-400 hover:text-green-600 rounded"
-                      title="添加到报告"
-                    >
-                      <Plus size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onSetEditingNodeId(node.id)
-                        onSetEditingNodeName(node.name)
-                      }}
+                <div className={`flex items-center gap-1 ml-2 shrink-0 ${viewMode === 'library' ? 'mr-2' : ''}`}>
+                  {node.url && (
+                    <a
+                      href={node.url}
+                      download
                       className="p-0.5 text-gray-400 hover:text-blue-600 rounded"
-                      title="重命名"
+                      title="下载"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <Edit2 size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteClick(node.id, node.name)
-                      }}
-                      className="p-0.5 text-gray-400 hover:text-red-600 rounded"
-                      title="删除"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                )}
+                      <Download size={14} />
+                    </a>
+                  )}
+                  {viewMode === 'report' && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAddDocumentToReport(node.id)
+                        }}
+                        className="p-0.5 text-gray-400 hover:text-green-600 rounded"
+                        title="添加到报告"
+                      >
+                        <Plus size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onSetEditingNodeId(node.id)
+                          onSetEditingNodeName(node.name)
+                        }}
+                        className="p-0.5 text-gray-400 hover:text-blue-600 rounded"
+                        title="重命名"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteClick(node.id, node.name)
+                        }}
+                        className="p-0.5 text-gray-400 hover:text-red-600 rounded"
+                        title="删除"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
                 {/* --- ↑↑↑ 结束 ↑↑↑ --- */}
               </div>
             )

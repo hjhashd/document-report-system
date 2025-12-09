@@ -1,25 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
+import { writeFile, mkdir, readdir, stat } from 'fs/promises';
 import path from 'path';
 import { updateFileStatus } from '@/lib/fileStatusStore';
 
 export async function POST(request: NextRequest) {
   const data = await request.formData();
   const file: File | null = data.get('file') as unknown as File;
-  const parentId = data.get('parentId') as string | null; // 我们顺便把 parentId 也传过来
+  const parentId = data.get('parentId') as string | null;
+  const rawUserId = (data.get('userId') as string | null) || undefined;
+  const rawTaskId = (data.get('taskId') as string | null) || undefined;
 
   if (!file) {
     return NextResponse.json({ success: false, error: 'No file found' }, { status: 400 });
   }
 
+  // 校验用户ID
+  if (!rawUserId || !/^\d+$/.test(rawUserId)) {
+    return NextResponse.json({ success: false, error: 'Invalid userId' }, { status: 400 });
+  }
+
+  // 文件名安全过滤
+  const originalName = typeof file.name === 'string' ? file.name : 'uploaded-file';
+  const baseName = path.basename(originalName);
+  const safeFileName = baseName.replace(/[^a-zA-Z0-9._-]/g, '_');
+
   // 1. 将文件保存到本地
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
-  // 确保 'public/uploads' 目录存在
-  // (你可能需要手动创建 public/uploads 目录)
-  const uniqueFileName = `${Date.now()}-${file.name}`;
-  const localPath = path.join(process.cwd(), 'public', 'uploads', uniqueFileName);
+  // 2. 计算任务ID（auto则递增）
+  let taskIdToUse: string | undefined = rawTaskId;
+  if (!taskIdToUse || taskIdToUse.toLowerCase() === 'auto') {
+    try {
+      const userRoot = path.join(process.cwd(), 'public', 'uploads', rawUserId);
+      let maxId = 0;
+      try {
+        const entries = await readdir(userRoot, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory() && /^\d+$/.test(entry.name)) {
+            const n = parseInt(entry.name, 10);
+            if (n > maxId) maxId = n;
+          }
+        }
+      } catch (_) {
+        // 用户目录不存在时，maxId 保持为 0
+      }
+      taskIdToUse = String(maxId + 1);
+    } catch (err) {
+      return NextResponse.json({ success: false, error: 'Failed to determine taskId' }, { status: 500 });
+    }
+  }
+
+  // 校验任务ID
+  if (!/^\d+$/.test(taskIdToUse)) {
+    return NextResponse.json({ success: false, error: 'Invalid taskId' }, { status: 400 });
+  }
+
+  // 3. 目标保存路径：public/uploads/[userId]/[taskId]/原文件名
+  const targetDir = path.join(process.cwd(), 'public', 'uploads', rawUserId, taskIdToUse);
+  const localPath = path.join(targetDir, safeFileName);
+
+  try {
+    await mkdir(targetDir, { recursive: true });
+  } catch (error) {
+    console.error('Error creating directories:', error);
+    return NextResponse.json({ success: false, error: 'Failed to create directories' }, { status: 500 });
+  }
 
   try {
     await writeFile(localPath, buffer);
@@ -28,13 +74,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Failed to save file' }, { status: 500 });
   }
 
-  // 2. 生成一个公开的 URL
-  // (因为存在 /public 目录下, Next.js 会自动托管它)
-  const publicUrl = `/uploads/${uniqueFileName}`;
+  // 4. 生成一个公开的 URL
+  const publicUrl = `/uploads/${rawUserId}/${taskIdToUse}/${encodeURIComponent(safeFileName)}`;
 
-  // 3. (模拟) 调用你同事的 Python 后端
-  // 这是"触发即忘" (fire-and-forget)，我们不 await 它
-  const newDocId = `doc-${Date.now()}`; // 你自己生成的唯一 ID
+  // 5. 生成 docId
+  const newDocId = `doc-${Date.now()}`;
   
   // 初始化文件状态为 PENDING
   updateFileStatus(newDocId, 'PENDING');
@@ -51,18 +95,20 @@ export async function POST(request: NextRequest) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       document_id: newDocId,
-      // 把你的服务器地址+文件 publicUrl 告诉他
       file_url: `http://你的NextJS服务器地址${publicUrl}`
     }),
   }).catch(e => console.error("Failed to trigger processing:", e)); // 别忘了处理错误
 
-  // 4. 立刻返回给前端，告诉前端任务已开始
+  // 6. 立刻返回给前端，告诉前端任务已开始
   return NextResponse.json({
-    id: newDocId,
-    name: file.name,
+    docId: newDocId,
+    name: safeFileName,
     status: 'PENDING', // 关键状态
     parentId: parentId,
     fileSize: file.size,
-    uploadDate: new Date().toISOString()
+    uploadDate: new Date().toISOString(),
+    userId: rawUserId,
+    taskId: taskIdToUse,
+    url: publicUrl
   });
 }

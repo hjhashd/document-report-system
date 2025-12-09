@@ -100,6 +100,24 @@ export default function DocumentReportSystem() {
     }
   }, [treeNodes.length])
 
+  // 当进入“我的上传”标签页时，加载该用户的所有上传文件
+  useEffect(() => {
+    if (activeTab === 'uploads') {
+      const userId = '123'
+      fetch(`/api/uploads/${userId}`)
+        .then(res => {
+          if (!res.ok) throw new Error('加载我的上传失败')
+          return res.json()
+        })
+        .then((data: DocumentNode[]) => {
+          setMyUploadsNodes(data)
+        })
+        .catch(err => {
+          console.error('获取我的上传失败:', err)
+        })
+    }
+  }, [activeTab])
+
   // -----------------------------------------------------------------
   // 3. 辅助函数 (为新页面准备)
   // -----------------------------------------------------------------
@@ -184,6 +202,8 @@ export default function DocumentReportSystem() {
       formData.append('file', file);
       formData.append('parentId', parentId);
       formData.append('fileType', fileType);
+      formData.append('userId', '123');
+      formData.append('taskId', 'auto');
 
       const response = await fetch('/api/upload', {
         method: 'POST',
