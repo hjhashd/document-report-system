@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+Dockerfile
+Dockerfile.dev
+docker-compose.yml
+dist
+*.log
+tmp
+.DS_Store
+**/*.local.*
