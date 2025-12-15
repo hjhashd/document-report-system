@@ -28,4 +28,3 @@ next-env.d.ts
 
 # uploads directory
 /public/uploads/
-uploads/

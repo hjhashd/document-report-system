@@ -19,10 +19,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid userId' }, { status: 400 });
   }
 
-  // 文件名安全过滤
   const originalName = typeof file.name === 'string' ? file.name : 'uploaded-file';
   const baseName = path.basename(originalName);
-  const safeFileName = baseName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const safeFileName = baseName
+    .replace(/\u0000/g, '')
+    .replace(/[\\\/]/g, '-')
+    .replace(/^\.+/, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 255);
 
   // 1. 将文件保存到本地
   const bytes = await file.arrayBuffer();

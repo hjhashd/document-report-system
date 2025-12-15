@@ -32,12 +32,14 @@ export const saveReport = (
   setCurrentView: (view: string) => void
 ) => {
   if (!reportName.trim()) {
-    toast.error("请输入报告名称")
+    toast.dismiss()
+    toast.error("请输入报告名称", { className: 'toast-base toast-error' })
     return
   }
 
   if (reportStructure.length === 0) {
-    toast.error("请至少创建一个报告目录")
+    toast.dismiss()
+    toast.error("请至少创建一个报告目录", { className: 'toast-base toast-error' })
     return
   }
 
@@ -57,7 +59,8 @@ export const saveReport = (
     setReports([...reports, reportData])
   }
 
-  toast.success("报告已保存！")
+  toast.dismiss()
+  toast.success("报告已保存！", { className: 'toast-base toast-success' })
   setCurrentView("reportList")
 }
 
@@ -80,11 +83,22 @@ export const editReport = (
   setStyleDocFiles(report.styleDocFiles || [])
   setBiddingFiles(report.biddingFiles || [])
   setCurrentView("reportCreation")
+  
+  toast.dismiss()
+  toast.info(`正在编辑报告"${report.name}"`, { className: 'toast-base toast-info' })
 }
 
 export const deleteReport = (reportId: string, reports: any[], setReports: (reports: any[]) => void) => {
   if (!window.confirm("确定要删除此报告吗？")) return
+  
+  // 找到要删除的报告名称，用于提示消息
+  const reportToDelete = reports.find((r) => r.id === reportId)
+  const reportName = reportToDelete?.name || "未知报告"
+  
   setReports(reports.filter((r) => r.id !== reportId))
+  
+  toast.dismiss()
+  toast.success(`报告"${reportName}"已删除！`, { className: 'toast-base toast-success' })
 }
 
 export const removeUploadedFile = (
@@ -95,11 +109,20 @@ export const removeUploadedFile = (
   setStyleDocFiles: (files: UploadedFile[]) => void,
   setBiddingFiles: (files: UploadedFile[]) => void
 ) => {
+  let fileName = ""
+  
   if (fileType === "style") {
+    const fileToRemove = styleDocFiles.find((f) => f.id === fileId)
+    fileName = fileToRemove?.name || "未知文件"
     setStyleDocFiles(styleDocFiles.filter((f) => f.id !== fileId))
   } else if (fileType === "bidding") {
+    const fileToRemove = biddingFiles.find((f) => f.id === fileId)
+    fileName = fileToRemove?.name || "未知文件"
     setBiddingFiles(biddingFiles.filter((f) => f.id !== fileId))
   }
+  
+  toast.dismiss()
+  toast.success(`文件"${fileName}"已移除！`, { className: 'toast-base toast-success' })
 }
 
 export const generateReport = (
@@ -108,12 +131,14 @@ export const generateReport = (
   setReportName: (name: string) => void
 ) => {
   if (!reportName.trim()) {
-    toast.error("请输入报告名称")
+    toast.dismiss()
+    toast.error("请输入报告名称", { className: 'toast-base toast-error' })
     return
   }
 
   if (reportStructure.length === 0) {
-    toast.error("请至少创建一个报告目录")
+    toast.dismiss()
+    toast.error("请至少创建一个报告目录", { className: 'toast-base toast-error' })
     return
   }
 
@@ -126,7 +151,8 @@ export const generateReport = (
   }
 
   if (!hasDocuments(reportStructure)) {
-    toast.error("请至少添加一个资料")
+    toast.dismiss()
+    toast.error("请至少添加一个资料", { className: 'toast-base toast-error' })
     return
   }
 
@@ -163,7 +189,8 @@ export const generateReport = (
   element.click()
   document.body.removeChild(element)
 
-  toast.success("报告已生成并下载！")
+  toast.dismiss()
+  toast.success("报告已生成并下载！", { className: 'toast-base toast-success' })
 }
 
 export const formatFileSize = (bytes: number): string => {

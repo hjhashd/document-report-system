@@ -9,8 +9,12 @@ import {
   ArrowRight,
   Check,
   Upload,
+  FolderOpen,
+  UploadCloud,
 } from "lucide-react"
 import { DocumentTree } from "./document-tree"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { toast } from "sonner"
 
 interface DocumentSelectionProps {
   treeNodes: any[]
@@ -90,6 +94,8 @@ export function DocumentSelection({
       onDocumentSelectionUpload(e)
       // 上传后自动切换到"我的上传"视图
       setActiveView("myUploads")
+      toast.dismiss() // 消除旧消息
+      toast.success("上传成功，已切换到我的上传", { className: 'toast-base toast-success' })
     }
   }
   
@@ -98,29 +104,20 @@ export function DocumentSelection({
       <div className="p-4 border-b">
         <h3 className="text-lg font-medium mb-3">文档选择</h3>
         
-        {/* 视图切换标签 */}
-        <div className="flex space-x-1 mb-3">
-          <button
-            onClick={() => setActiveView("library")}
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-              activeView === "library"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            资料库
-          </button>
-          <button
-            onClick={() => setActiveView("myUploads")}
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-              activeView === "myUploads"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            我的上传
-          </button>
-        </div>
+        <Tabs value={activeView} onValueChange={(v) => { 
+          setActiveView(v as any); 
+          toast.dismiss() // 消除旧消息
+          toast(v === 'library' ? '已切换到资料库' : '已切换到我的上传', { className: 'toast-base toast-info' }) 
+        }}>
+          <TabsList className="mb-3 gap-2 bg-gray-100 p-1">
+            <TabsTrigger value="library" className="flex-none px-4 py-2 rounded-md data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200 transition-all">
+              <span className="flex items-center gap-2"><FolderOpen size={16} />资料库</span>
+            </TabsTrigger>
+            <TabsTrigger value="myUploads" className="flex-none px-4 py-2 rounded-md data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200 transition-all">
+              <span className="flex items-center gap-2"><UploadCloud size={16} />我的上传</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
         
         {/* 搜索框 - 根据当前视图显示不同的搜索框 */}
         <div className="relative mb-3">

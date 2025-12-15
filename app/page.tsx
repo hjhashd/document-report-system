@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { FolderOpen, FileText, ChevronRight, File, Folder, Eye, UploadCloud } from "lucide-react" // 添加了 UploadCloud 图标
+import { toast } from 'sonner' // 导入 toast 函数
 
 // 导入你的新布局组件和类型
 import { DocumentReportLayout } from "@/components/document-report/document-report-layout"
@@ -11,7 +12,8 @@ import { DocumentNode, ReportNode, UploadedFile } from "@/components/document-re
 import { DocumentTree } from "@/components/document-report/document-tree"
 import { FlowchartLink } from "@/components/flowchart-link"
 import { DocumentPreview } from "@/components/document-report/document-preview"
-import { MyUploadsTree } from "@/components/document-report/my-uploads-tree" // 导入 MyUploadsTree
+import { MyUploadsTree } from "@/components/document-report/my-uploads-tree"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // 导入你的操作函数（资料库视图需要）
 import { getNode, getNodePath, readFileContent, getReportNode, addDocumentsToReport, addDocumentNodeToTree } from "@/components/document-report/tree-operations"
@@ -85,7 +87,7 @@ export default function DocumentReportSystem() {
   // --- 添加此 useEffect：首次加载就拉取资料库结构 ---
   useEffect(() => {
     if (treeNodes.length === 0) {
-      console.log("正在获取资料库结构...");
+      console.log("正在获取资料库结构...")
       fetch('/api/library')
         .then(res => res.json())
         .then((data: DocumentNode[]) => {
@@ -99,6 +101,21 @@ export default function DocumentReportSystem() {
         .catch(err => console.error("获取资料库失败:", err))
     }
   }, [treeNodes.length])
+
+  useEffect(() => {
+    const userId = '123'
+    fetch(`/api/uploads/${userId}`)
+      .then(res => {
+        if (!res.ok) throw new Error('加载我的上传失败')
+        return res.json()
+      })
+      .then((data: DocumentNode[]) => {
+        setMyUploadsNodes(data)
+      })
+      .catch(err => {
+        console.error('获取我的上传失败:', err)
+      })
+  }, [])
 
   // 当进入“我的上传”标签页时，加载该用户的所有上传文件
   useEffect(() => {
@@ -168,27 +185,53 @@ export default function DocumentReportSystem() {
 
   const handleUpdateDocumentNodeName = (nodeId: string, newName: string) => {
     if (!newName.trim()) return
+    
+    // 查找当前节点名称
+    const currentNode = treeNodes.find((node) => node.id === nodeId)
+    const oldName = currentNode?.name || "未知文档"
+    
     setTreeNodes(
       treeNodes.map((node) =>
         node.id === nodeId ? { ...node, name: newName.trim() } : node
       )
     )
+    
+    // 显示成功提示
+    toast.dismiss()
+    toast.success(`文档名称已从"${oldName}"更新为"${newName.trim()}"`, { className: 'toast-base toast-success' })
   }
 
   // 为 "我的上传" 添加重命名和删除 Handler
   const handleUpdateMyUploadsNodeName = (nodeId: string, newName: string) => {
     if (!newName.trim()) return
+    
+    // 查找当前节点名称
+    const currentNode = myUploadsNodes.find((node) => node.id === nodeId)
+    const oldName = currentNode?.name || "未知文档"
+    
     setMyUploadsNodes(
       myUploadsNodes.map((node) =>
         node.id === nodeId ? { ...node, name: newName.trim() } : node
       )
     )
+    
+    // 显示成功提示
+    toast.dismiss()
+    toast.success(`文档名称已从"${oldName}"更新为"${newName.trim()}"`, { className: 'toast-base toast-success' })
   }
 
   const handleDeleteMyUploadsNode = (nodeId: string) => {
+    // 查找当前节点名称
+    const currentNode = myUploadsNodes.find((node) => node.id === nodeId)
+    const nodeName = currentNode?.name || "未知文档"
+    
     setMyUploadsNodes(
       myUploadsNodes.filter((node) => node.id !== nodeId)
     )
+    
+    // 显示成功提示
+    toast.dismiss()
+    toast.success(`文档"${nodeName}"已删除`, { className: 'toast-base toast-success' })
   }
 
   // 通用文件上传API调用函数
@@ -215,12 +258,21 @@ export default function DocumentReportSystem() {
       }
 
       const result = await response.json();
+      // 显示成功消息
+      toast.success(`文件 "${file.name}" 上传成功！`, {
+        description: `文件大小: ${formatFileSize(file.size)}`
+      });
+      
       return {
         docId: result.docId,
         status: result.status
       };
     } catch (error) {
       console.error('上传文件时出错:', error);
+      // 显示失败消息
+      toast.error(`文件 "${file.name}" 上传失败！`, {
+        description: error instanceof Error ? error.message : '未知错误'
+      });
       return null;
     }
   };
@@ -231,6 +283,10 @@ export default function DocumentReportSystem() {
     parentId: string | null = null
   ) => {
     const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    
+    // 显示开始上传的消息
+    toast.info(`开始上传 ${files.length} 个文件到资料库...`)
     
     // --- 准备工作 ---
     // "我的上传" 目录总是根目录
@@ -261,6 +317,19 @@ export default function DocumentReportSystem() {
     // 等待所有文件都处理完毕
     const fileData = await Promise.all(fileDataPromises)
     
+    // 统计成功和失败的文件数量
+    const successCount = fileData.filter(f => f.status !== "LOCAL").length
+    const failCount = fileData.length - successCount
+    
+    // 显示上传结果的消息
+    if (failCount === 0) {
+      toast.success(`所有 ${successCount} 个文件上传成功！`)
+    } else if (successCount === 0) {
+      toast.error(`所有 ${failCount} 个文件上传失败！`)
+    } else {
+      toast.warning(`${successCount} 个文件上传成功，${failCount} 个文件上传失败`)
+    }
+    
     // 将新文件添加到 "我的上传" state
     setMyUploadsNodes(prevNodes => [...prevNodes, ...fileData])
   }
@@ -272,6 +341,10 @@ export default function DocumentReportSystem() {
   ) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
+    
+    // 显示开始上传的消息
+    const fileTypeText = fileType === "style" ? "样式文档" : "投标文档"
+    toast.info(`开始上传 ${files.length} 个${fileTypeText}...`)
     
     // --- 准备工作 ---
     // "我的上传" 目录总是根目录
@@ -316,6 +389,19 @@ export default function DocumentReportSystem() {
       status: uploadResult?.status || "LOCAL",
     }))
     
+    // 统计成功和失败的文件数量
+    const successCount = newDocNodes.filter(f => f.status !== "LOCAL").length
+    const failCount = newDocNodes.length - successCount
+    
+    // 显示上传结果的消息
+    if (failCount === 0) {
+      toast.success(`所有 ${successCount} 个${fileTypeText}上传成功！`)
+    } else if (successCount === 0) {
+      toast.error(`所有 ${failCount} 个${fileTypeText}上传失败！`)
+    } else {
+      toast.warning(`${successCount} 个${fileTypeText}上传成功，${failCount} 个${fileTypeText}上传失败`)
+    }
+    
     // 将新文件添加到 "我的上传" state
     setMyUploadsNodes(prevNodes => [...prevNodes, ...newDocNodes])
   }
@@ -324,7 +410,10 @@ export default function DocumentReportSystem() {
   const handleDocumentSelectionUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
-
+    
+    // 显示开始上传的消息
+    toast.info(`开始上传 ${files.length} 个文档...`)
+    
     // --- 准备工作 ---
     // 1. "我的上传" 目录总是根目录
     const parentId = null
@@ -350,6 +439,19 @@ export default function DocumentReportSystem() {
       fileType: fileType,
       status: uploadResult?.status || "LOCAL",
     }))
+    
+    // 统计成功和失败的文件数量
+    const successCount = newDocNodes.filter(f => f.status !== "LOCAL").length
+    const failCount = newDocNodes.length - successCount
+    
+    // 显示上传结果的消息
+    if (failCount === 0) {
+      toast.success(`所有 ${successCount} 个文档上传成功！`)
+    } else if (successCount === 0) {
+      toast.error(`所有 ${failCount} 个文档上传失败！`)
+    } else {
+      toast.warning(`${successCount} 个文档上传成功，${failCount} 个文档上传失败`)
+    }
     
     // 将新文件添加到 "我的上传" state
     setMyUploadsNodes(prevNodes => [...prevNodes, ...newDocNodes])
@@ -422,44 +524,38 @@ export default function DocumentReportSystem() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <h1 className="text-2xl font-bold text-gray-800">文档报告系统</h1>
-            <div className="flex gap-4">
-              <button
-                onClick={() => setActiveTab("library")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === "library" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FolderOpen size={20} />
-                  资料库
-                </div>
-              </button>
-
-              {/* --- 这是新按钮 --- */}
-              <button
-                onClick={() => setActiveTab("uploads")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === "uploads" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <UploadCloud size={20} />
-                  我的上传
-                </div>
-              </button>
-              {/* --- 新按钮结束 --- */}
-
-              <button
-                onClick={() => setActiveTab("report")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === "report" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FileText size={20} />
-                  报告生成
-                </div>
-              </button>
+            <div className="flex">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="gap-2 bg-gray-100 p-1">
+                  <TabsTrigger 
+                    value="library" 
+                    className="flex-none px-4 py-2 rounded-md data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200 transition-all"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FolderOpen size={20} />
+                      资料库
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="uploads" 
+                    className="flex-none px-4 py-2 rounded-md data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200 transition-all"
+                  >
+                    <div className="flex items-center gap-2">
+                      <UploadCloud size={20} />
+                      我的上传
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="report" 
+                    className="flex-none px-4 py-2 rounded-md data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200 transition-all"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText size={20} />
+                      报告生成
+                    </div>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
           </div>
         </div>

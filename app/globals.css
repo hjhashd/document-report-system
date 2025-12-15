@@ -125,3 +125,39 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .toast-base {
+    @apply rounded-lg shadow-md px-4 py-3 w-[560px] max-w-[90vw] border;
+  }
+  .toast-success {
+    background-color: #E8F5E9; /* 淡绿色背景 */
+    color: #2E7D32; /* 深绿色文字 */
+    border-color: #A5D6A7; /* 浅绿色边框 */
+    box-shadow: 0 4px 12px rgba(46, 125, 50, 0.15);
+  }
+  .toast-error {
+    background-color: #FFEBEE; /* 淡红色背景 */
+    color: #C62828; /* 深红色文字 */
+    border-color: #FFCDD2; /* 浅红色边框 */
+    box-shadow: 0 4px 12px rgba(198, 40, 40, 0.15);
+  }
+  .toast-info {
+    background-color: #E3F2FD; /* 淡蓝色背景 */
+    color: #1565C0; /* 深蓝色文字 */
+    border-color: #BBDEFB; /* 浅蓝色边框 */
+    box-shadow: 0 4px 12px rgba(21, 101, 192, 0.15);
+  }
+  @media (max-width: 640px) {
+    .toast-base { @apply w-[92vw] px-3 py-2; }
+  }
+}
+
+@layer components {
+  .btn-active {
+    @apply bg-blue-600 text-white shadow-md ring-2 ring-blue-600 ring-offset-1;
+  }
+  .btn-default {
+    @apply bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 transition-all duration-200;
+  }
+}

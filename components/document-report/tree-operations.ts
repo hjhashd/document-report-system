@@ -155,18 +155,21 @@ export const addDocumentToReport = (
 ) => {
   const doc = getNode(treeNodes, docId)
   if (!doc || doc.type !== "file") {
-    toast("请选择一个资料文件")
+    toast.dismiss()
+    toast("请选择一个资料文件", { className: 'toast-base toast-error' })
     return
   }
 
   if (!selectedReportNode) {
-    toast("请先选择报告目录位置")
+    toast.dismiss()
+    toast("请先选择报告目录位置", { className: 'toast-base toast-error' })
     return
   }
 
   const reportNode = getReportNode(reportStructure, selectedReportNode)
   if (!reportNode || reportNode.type !== "folder") {
-    toast("请选择一个报告目录")
+    toast.dismiss()
+    toast("请选择一个报告目录", { className: 'toast-base toast-error' })
     return
   }
 
@@ -175,7 +178,8 @@ export const addDocumentToReport = (
   }
 
   if (checkExists(reportNode.children)) {
-    toast("该资料已添加到此目录或其子目录中")
+    toast.dismiss()
+    toast("该资料已添加到此目录或其子目录中", { className: 'toast-base toast-info' })
     return
   }
 
@@ -204,7 +208,8 @@ export const addDocumentToReport = (
   const newStructure = [...reportStructure]
   if (addToNode(newStructure)) {
     setReportStructure(newStructure)
-    toast.success(`成功添加资料 "${doc.name}" 到报告！`)
+    toast.dismiss()
+    toast.success(`成功添加资料 "${doc.name}" 到报告！`, { className: 'toast-base toast-success' })
   }
 }
 
@@ -218,7 +223,8 @@ export const addDocumentsToReport = (
   setSelectedDocuments: (documents: Set<string>) => void
 ) => {
   if (selectedDocuments.size === 0) {
-    toast("请先选择要添加的资料")
+    toast.dismiss()
+    toast("请先选择要添加的资料", { className: 'toast-base toast-error' })
     return
   }
 
@@ -237,7 +243,8 @@ export const addDocumentsToReport = (
   if (targetParentId) {
     parentNode = getReportNode(newStructure, targetParentId)
     if (!parentNode || parentNode.type !== "folder") {
-      toast("请选择一个报告文件夹作为目标位置")
+      toast.dismiss()
+      toast("请选择一个报告文件夹作为目标位置", { className: 'toast-base toast-error' })
       return
     }
     // 确保 children 数组存在
@@ -290,9 +297,11 @@ export const addDocumentsToReport = (
   setSelectedDocuments(new Set()) // 清空选择
   
   if (addedCount > 0) {
-    toast.success(`成功添加 ${addedCount} 个资料到报告！`)
+    toast.dismiss()
+    toast.success(`成功添加 ${addedCount} 个资料到报告！`, { className: 'toast-base toast-success' })
   } else {
-    toast.info("没有新的资料被添加（可能已存在）。")
+    toast.dismiss()
+    toast.info("没有新的资料被添加（可能已存在）。", { className: 'toast-base toast-info' })
   }
 }
 
@@ -335,14 +344,16 @@ export const addFolderDocumentsToReport = (
 ) => {
   const folder = getNode(treeNodes, folderId)
   if (!folder || folder.type !== "folder") {
-    toast("请选择一个文件夹")
+    toast.dismiss()
+    toast("请选择一个文件夹", { className: 'toast-base toast-error' })
     return
   }
 
   const folderDocuments = getFolderDocuments(folderId, treeNodes)
   
   if (folderDocuments.length === 0) {
-    toast("该文件夹中没有文档")
+    toast.dismiss()
+    toast("该文件夹中没有文档", { className: 'toast-base toast-info' })
     return
   }
 
@@ -354,7 +365,8 @@ export const addFolderDocumentsToReport = (
   if (targetParentId) {
     parentNode = getReportNode(newStructure, targetParentId)
     if (!parentNode || parentNode.type !== "folder") {
-      toast("请选择一个报告文件夹作为目标位置")
+      toast.dismiss()
+      toast("请选择一个报告文件夹作为目标位置", { className: 'toast-base toast-error' })
       return
     }
     // 确保 children 数组存在
@@ -402,9 +414,11 @@ export const addFolderDocumentsToReport = (
     if (skippedDocs.length > 0) {
       message += ` 已跳过 ${skippedDocs.length} 个已存在的文档。`
     }
-    toast.success(message)
+    toast.dismiss()
+    toast.success(message, { className: 'toast-base toast-success' })
   } else {
-    toast.info(`没有新的资料被添加。文件夹 "${folder.name}" 中的所有文档可能已存在于目标目录中。`)
+    toast.dismiss()
+    toast.info(`没有新的资料被添加。文件夹 "${folder.name}" 中的所有文档可能已存在于目标目录中。`, { className: 'toast-base toast-info' })
   }
 }
 
@@ -445,17 +459,21 @@ export const saveEditedNodeName = (
   setEditingNodeName: (name: string) => void
 ) => {
   if (!editingNodeName.trim()) {
-    toast.error("目录名称不能为空")
+    toast.dismiss()
+    toast.error("目录名称不能为空", { className: 'toast-base toast-error' })
     return
   }
 
-  const updateNodeName = (nodes: ReportNode[]): boolean => {
+  // 查找当前节点名称
+  let oldName = "未知目录"
+  const findNodeName = (nodes: ReportNode[]): boolean => {
     for (const node of nodes) {
       if (node.id === editingNodeId) {
+        oldName = node.name
         node.name = editingNodeName.trim()
         return true
       }
-      if (node.children && updateNodeName(node.children)) {
+      if (node.children && findNodeName(node.children)) {
         return true
       }
     }
@@ -463,10 +481,14 @@ export const saveEditedNodeName = (
   }
 
   const newStructure = [...reportStructure]
-  updateNodeName(newStructure)
+  findNodeName(newStructure)
   setReportStructure(newStructure)
   setEditingNodeId(null)
   setEditingNodeName("")
+  
+  // 显示成功提示
+  toast.dismiss()
+  toast.success(`目录名称已从"${oldName}"更新为"${editingNodeName.trim()}"`, { className: 'toast-base toast-success' })
 }
 
 export const handleDragDrop = (

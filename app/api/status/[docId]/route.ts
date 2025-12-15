@@ -3,9 +3,9 @@ import { getFileStatus, fileExists } from '@/lib/fileStatusStore';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { docId: string } }
+  { params }: { params: Promise<{ docId: string }> }
 ) {
-  const docId = params.docId;
+  const { docId } = await params;
 
   // 如果文件不存在，返回404
   if (!fileExists(docId)) {
